@@ -14,7 +14,7 @@ const Index = () => {
             <CheckSquare className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
-            Scrum Manager
+            Ultimate Scrum Manager
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-8">
             Gerencie seus projetos ágeis com eficiência e simplicidade
@@ -58,7 +58,7 @@ const Index = () => {
             </div>
             <h3 className="text-xl font-semibold mb-2">Acompanhamento Visual</h3>
             <p className="text-muted-foreground">
-              Visualize o progresso dos projetos com dashboards intuitivos e KPIs
+              Visualize o progresso dos projetos com dashboards intuitivos
             </p>
           </div>
 

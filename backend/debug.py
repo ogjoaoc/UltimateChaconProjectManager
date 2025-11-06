@@ -23,7 +23,6 @@ except Project.DoesNotExist:
     print(f"Projeto com ID {PROJECT_ID} não encontrado")
     exit(1)
 
-# Checa se já existe
 membership, created = ProjectMembership.objects.get_or_create(
     user=user,
     project=project,
