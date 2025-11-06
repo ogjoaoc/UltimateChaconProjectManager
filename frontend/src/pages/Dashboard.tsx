@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch, clearTokens } from "@/api/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardFooter, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -281,18 +281,27 @@ const Dashboard = () => {
                 )}
             </CardContent>
 
-            <div className="flex justify-end gap-4 mt-4">
-            <Button size="sm" variant="outline" onClick={() => navigate(`/projects/${proj.id}`)}>
+            <CardFooter className="justify-end gap-4">
+              <Button
+                size="sm"
+                onClick={() => navigate(`/projects/${proj.id}`)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
                 Abrir Projeto
-            </Button>
+              </Button>
 
-            {/* Botão de adicionar membro só se for admin */}
-            {user?.is_superuser && (
-                <Button size="sm" variant="outline" onClick={() => setOpenAddProjectId(proj.id)}>
-                Adicionar Membro
+              {/* Botão de adicionar membro só se for admin */}
+              {user?.is_superuser && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setOpenAddProjectId(proj.id)}
+                  className="bg-white text-black"
+                >
+                  Adicionar Membro
                 </Button>
-            )}
-            </div>
+              )}
+            </CardFooter>
 
             {/* Modal de adicionar membro */}
             {openAddProjectId === proj.id && user?.is_superuser && (
