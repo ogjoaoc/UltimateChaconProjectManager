@@ -61,7 +61,7 @@ class ProductBacklogItem(models.Model):
         ('LOW', 'Baixa'),
     ]
 
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="backlog_items")
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="project_backlog")
     user_story = models.ForeignKey(UserStory, on_delete=models.CASCADE, related_name="backlog_items")
     title = models.CharField(max_length=200)
     description = models.TextField()

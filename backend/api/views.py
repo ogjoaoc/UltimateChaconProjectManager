@@ -26,7 +26,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         project = serializer.save(owner=self.request.user)
-        # Criar automaticamente uma associação ProjectMembership para o criador como PO
         ProjectMembership.objects.create(
             user=self.request.user,
             project=project,
@@ -49,6 +48,21 @@ class UserStoryViewSet(viewsets.ModelViewSet):
         context['request'] = self.request
         context['view'] = self
         context['project_id'] = self.kwargs.get('project_pk')  
+        return context
+
+    def destroy(self, request, *args, **kwargs):
+        project_id = self.kwargs.get('project_pk')
+        project = get_object_or_404(Project, id=project_id)
+        membership = ProjectMembership.objects.filter(
+            user=request.user,
+            project=project,
+            role='PO'
+        ).first()
+
+        if not membership:
+            return Response({"detail": "Apenas o Product Owner pode remover histórias de usuário"}, status=status.HTTP_403_FORBIDDEN)
+
+        return super().destroy(request, *args, **kwargs)
 
 class ProductBacklogItemViewSet(viewsets.ModelViewSet):
     serializer_class = ProductBacklogItemSerializer

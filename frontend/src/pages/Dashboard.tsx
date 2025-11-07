@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardFooter, CardTitle } from "@/componen
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { LogOut, CheckSquare, TrendingUp } from "lucide-react";
+import { LogOut, TrendingUp, User as UserIcon } from "lucide-react";
 
 // --- TIPAGENS ---
 type User = {
@@ -21,22 +21,12 @@ type User = {
   is_superuser?: boolean;
 };
 
-type Task = {
-  id: number;
-  project: number;
-  title: string;
-  description?: string;
-  done: boolean;
-  assigned_to?: User;
-};
-
 type Project = {
   id: number;
   name: string;
   description?: string;
   owner: User;
   members: User[];
-  tasks?: Task[];
 };
 
 // --- FORMULÁRIO DE CRIAÇÃO DE PROJETO ---
@@ -98,9 +88,11 @@ const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Novo estado para o modal de perfil
 
   const [openAddProjectId, setOpenAddProjectId] = useState<number | null>(null);
   const [addEmail, setAddEmail] = useState("");
+  const [addRole, setAddRole] = useState<"SM" | "DEV">("DEV");
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
@@ -127,7 +119,8 @@ const Dashboard = () => {
       const projs: Project[] = await apiFetch("/api/projects/");
       setProjects(projs);
     } catch (err: any) {
-      toast.error(err.detail || "Erro ao carregar projetos");
+      console.error("Erro ao carregar projetos:", err);
+      toast.error(err.message || err.detail || "Erro ao carregar projetos");
     }
   }
 
@@ -138,35 +131,32 @@ const Dashboard = () => {
       toast.success("Projeto removido");
       setProjects((p) => p.filter((x) => x.id !== id));
     } catch (err: any) {
-      toast.error(err.detail || "Erro ao remover projeto");
-    }
-  }
-
-  async function handleToggleTask(task: Task) {
-    try {
-      const updated = { ...task, done: !task.done };
-      await apiFetch(`/api/tasks/${task.id}/`, { method: "PUT", body: JSON.stringify(updated) });
-      toast.success("Task atualizada");
-      await fetchProjects();
-    } catch (err: any) {
-      toast.error(err.detail || "Erro ao atualizar task");
+      console.error("Erro removendo projeto:", err);
+      toast.error(err.message || err.detail || "Erro ao remover projeto");
     }
   }
 
   async function handleAddMember(projectId: number) {
     if (!addEmail.trim()) return toast.error("Email vazio");
+    if (!addRole) return toast.error("Selecione o papel do membro");
+    
     setAdding(true);
     try {
       await apiFetch(`/api/projects/${projectId}/add_member/`, {
         method: "POST",
-        body: JSON.stringify({ email: addEmail.trim() }),
+        body: JSON.stringify({ 
+          email: addEmail.trim(),
+          role: addRole
+        }),
       });
       toast.success("Membro adicionado à equipe");
       setAddEmail("");
+      setAddRole("DEV");
       setOpenAddProjectId(null);
       await fetchProjects();
     } catch (err: any) {
-      toast.error(err.detail || "Erro ao adicionar membro");
+      console.error("Erro adicionando membro:", err);
+      toast.error(err.message || err.detail || "Erro ao adicionar membro");
     } finally {
       setAdding(false);
     }
@@ -178,14 +168,12 @@ const Dashboard = () => {
   }
 
   const activeProjects = projects.length;
-  const pendingTasks = useMemo(() => {
-    return projects.reduce((acc, proj) => acc + (proj.tasks?.filter((t) => !t.done).length || 0), 0);
-  }, [projects]);
+  
 
   const visibleProjects = useMemo(() => {
     if (!user) return [];
     return projects.filter((proj) =>
-      proj.members.some((m) => m.id === user.id) || user.is_superuser
+      proj.members.some((m) => m.id === user.id) || proj.owner.id === user.id
     );
   }, [projects, user]);
 
@@ -199,9 +187,14 @@ const Dashboard = () => {
             {user ? `${user.is_superuser ? "ADMIN" : user.role || "Sem role"} - ${user.bio || ""}` : "Carregando..."}
           </p>
         </div>
-        <Button variant="ghost" onClick={handleLogout} title="Sair">
-          <LogOut className="w-4 h-4 mr-2" /> Sair
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={() => setIsProfileModalOpen(true)} title="Perfil">
+            <UserIcon className="w-4 h-4 mr-2" /> Perfil
+          </Button>
+          <Button variant="ghost" onClick={handleLogout} title="Sair">
+            <LogOut className="w-4 h-4 mr-2" /> Sair
+          </Button>
+        </div>
       </header>
 
       {/* KPIs */}
@@ -215,120 +208,119 @@ const Dashboard = () => {
             <div className="text-2xl font-bold">{loading ? "..." : activeProjects}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tarefas Pendentes</CardTitle>
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
+      </section>
+
+      {/* CRIAR PROJETO */}
+      <section className="mb-6 flex justify-start">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Criar Novo Projeto</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? "..." : pendingTasks}</div>
+            <CreateProjectForm onProjectCreated={fetchProjects} />
           </CardContent>
         </Card>
       </section>
 
-      {/* CRIAR PROJETO */}
-      {user?.is_superuser && (
-        <section className="mb-6 flex justify-start">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Criar Novo Projeto</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CreateProjectForm onProjectCreated={fetchProjects} />
-            </CardContent>
-          </Card>
-        </section>
-      )}
-
       {/* LISTA DE PROJETOS */}
       <section>
         <h2 className="text-xl font-semibold mb-4">Seus Projetos</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        {/* OBS: items-stretch garante que os cards tenham a mesma altura na grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
           {visibleProjects.map((proj) => (
-            <Card key={proj.id}>
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                <div>
+            // A principal mudança: tornar o Card um flex column que preenche a altura
+            <Card key={proj.id} className="flex flex-col justify-between h-full min-h-[220px]">
+              <CardHeader>
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex-grow min-w-0">
                     <h3 className="text-lg font-medium">{proj.name}</h3>
-                    <p className="text-sm text-muted-foreground">{proj.description}</p>
-                    <p className="text-xs text-muted-foreground">
-                    Owner: {proj.owner.username} | Membros: {proj.members.length}
+                    <p className="text-sm text-muted-foreground truncate">{proj.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Owner: {proj.owner.username} | Membros: {proj.members.length}
                     </p>
-                </div>
-                {user?.is_superuser && (
-                    <Button variant="destructive" size="sm" onClick={() => handleDeleteProject(proj.id)}>
-                    Remover
+                  </div>
+
+                  {proj.owner.id === user?.id && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteProject(proj.id)}
+                      className="flex-shrink-0"
+                    >
+                      Remover
                     </Button>
-                )}
+                  )}
                 </div>
-            </CardHeader>
+              </CardHeader>
 
-            <CardContent>
-                <h4 className="font-semibold mb-2">Tarefas</h4>
-                {proj.tasks && proj.tasks.length > 0 ? (
-                proj.tasks.map((t) => (
-                    <div key={t.id} className="flex items-center justify-between mb-1">
-                    <span className={t.done ? "line-through text-muted-foreground" : ""}>
-                        {t.title} {t.assigned_to ? `( ${t.assigned_to.username} )` : ""}
-                    </span>
-                    <Button size="sm" onClick={() => handleToggleTask(t)}>
-                        {t.done ? "Desmarcar" : "Concluir"}
-                    </Button>
-                    </div>
-                ))
-                ) : (
-                <p className="text-sm text-muted-foreground">Sem tarefas</p>
-                )}
-            </CardContent>
+              {/* CardContent cresce para ocupar o espaço, empurrando o footer para o final */}
+              <CardContent className="flex-grow">
+                <p className="text-sm text-muted-foreground">Membros: {proj.members.length}</p>
+              </CardContent>
 
-            <CardFooter className="justify-end gap-4">
-              <Button
-                size="sm"
-                onClick={() => navigate(`/projects/${proj.id}`)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                Abrir Projeto
-              </Button>
-
-              {/* Botão de adicionar membro só se for admin */}
-              {user?.is_superuser && (
+              {/* Footer sem mt-4; fica sempre no fim do card por causa do flex-column + justify-between */}
+              <CardFooter className="flex justify-between items-center pt-2">
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={() => setOpenAddProjectId(proj.id)}
-                  className="bg-white text-black"
+                  onClick={() => navigate(`/projects/${proj.id}`)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
-                  Adicionar Membro
+                  Abrir Projeto
                 </Button>
-              )}
-            </CardFooter>
 
-            {/* Modal de adicionar membro */}
-            {openAddProjectId === proj.id && user?.is_superuser && (
+                {proj.owner.id === user?.id && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOpenAddProjectId(proj.id)}
+                    className="flex-shrink-0"
+                  >
+                    Adicionar Membro
+                  </Button>
+                )}
+              </CardFooter>
+
+              {/* Modal de adicionar membro */}
+              {openAddProjectId === proj.id && (
                 <Dialog open={true} onOpenChange={() => setOpenAddProjectId(null)}>
-                <DialogContent>
+                  <DialogContent>
                     <DialogHeader>
-                    <DialogTitle>Adicionar membro a {proj.name}</DialogTitle>
+                      <DialogTitle>Adicionar membro a {proj.name}</DialogTitle>
                     </DialogHeader>
-                    <div className="flex flex-col gap-2">
-                    <Input
-                        type="email"
-                        placeholder="Email do usuário"
-                        value={addEmail}
-                        onChange={(e) => setAddEmail(e.target.value)}
-                    />
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex flex-col gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Email do usuário</label>
+                        <Input
+                          type="email"
+                          placeholder="email@exemplo.com"
+                          value={addEmail}
+                          onChange={(e) => setAddEmail(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Papel no projeto</label>
+                        <select
+                          className="w-full rounded-md border border-input px-3 py-2"
+                          value={addRole}
+                          onChange={(e) => setAddRole(e.target.value as "SM" | "DEV")}
+                        >
+                          <option value="SM">Scrum Master</option>
+                          <option value="DEV">Developer</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2 mt-2">
                         <Button onClick={() => handleAddMember(proj.id)} disabled={adding}>
-                        {adding ? "Adicionando..." : "Adicionar Membro"}
+                          {adding ? "Adicionando..." : "Adicionar Membro"}
                         </Button>
                         <Button variant="ghost" onClick={() => setOpenAddProjectId(null)}>
-                        Cancelar
+                          Cancelar
                         </Button>
+                      </div>
                     </div>
-                    </div>
-                </DialogContent>
+                  </DialogContent>
                 </Dialog>
-            )}
+              )}
             </Card>
           ))}
         </div>

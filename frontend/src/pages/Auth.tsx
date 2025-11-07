@@ -26,7 +26,6 @@ const Auth: React.FC = () => {
   const [rEmail, setREmail] = useState("");
   const [rPassword, setRPassword] = useState("");
   const [rPassword2, setRPassword2] = useState("");
-  const [rRole, setRRole] = useState<"PO" | "SM" | "DEV">("DEV");
   const [rBio, setRBio] = useState("");
 
   // --- LOGIN ---
@@ -66,7 +65,6 @@ const Auth: React.FC = () => {
           username: rUsername.trim(),
           email: rEmail.trim(),
           password: rPassword,
-          role: rRole,
           bio: rBio.trim(),
         }),
       });
@@ -154,16 +152,6 @@ const Auth: React.FC = () => {
                   onChange={(e) => setRPassword2(e.target.value)}
                   placeholder="Repita a senha"
                 />
-                <Label>Papel</Label>
-                <select
-                  value={rRole}
-                  onChange={(e) => setRRole(e.target.value as "PO" | "SM" | "DEV")}
-                  className="border p-2 rounded"
-                >
-                  <option value="PO">Product Owner</option>
-                  <option value="SM">Scrum Master</option>
-                  <option value="DEV">Developer</option>
-                </select>
                 <Label>Bio</Label>
                 <Input
                   value={rBio}

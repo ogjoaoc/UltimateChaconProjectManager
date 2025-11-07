@@ -14,7 +14,7 @@ const Index = () => {
             <CheckSquare className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
-            Ultimate Scrum Manager
+            Sistema de Gestão de Artefatos Scrum
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-8">
             Gerencie seus projetos ágeis com eficiência e simplicidade
@@ -27,14 +27,14 @@ const Index = () => {
             >
               Começar Agora
             </Button>
-            <Button 
+            {/* <Button 
               size="lg" 
               variant="outline"
               onClick={() => navigate("/auth")}
               className="text-lg px-8"
             >
               Fazer Login
-            </Button>
+            </Button> */}
           </div>
         </div>
       </section>
