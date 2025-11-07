@@ -3,18 +3,11 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 
 class User(AbstractUser):
-    ROLE_CHOICES = [
-        ('PO', 'Product Owner'),
-        ('SM', 'Scrum Master'),
-        ('DEV', 'Developer'),
-    ]
-
-    role = models.CharField(max_length=3, choices=ROLE_CHOICES, default='DEV')
     bio = models.TextField(blank=True)
     # birth_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.username} ({self.get_role_display()})"
+        return self.username
 
 # um usuário pode ter vários projetos, e cada projeto pode ter vários usuários com papéis diferentes
 # ManyToManyFiled

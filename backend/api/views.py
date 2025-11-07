@@ -19,14 +19,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser:
-            return Project.objects.all()
-        return Project.objects.filter(members=user).distinct()
+        return Project.objects.filter(Q(owner=user) | Q(members=user)).distinct()
 
     def perform_create(self, serializer):
-        if not self.request.user.is_superuser:
-            raise PermissionDenied("Apenas admins podem criar projetos")
-        serializer.save(owner=self.request.user)
+        project = serializer.save(owner=self.request.user)
+        # Criar automaticamente uma associação ProjectMembership para o criador como PO
+        ProjectMembership.objects.create(
+            user=self.request.user,
+            project=project,
+            role='PO'
+        )
 
 # em desenvolvimento...
 class TaskViewSet(viewsets.ModelViewSet):
@@ -51,13 +53,33 @@ class AddMemberView(APIView):
     def post(self, request, project_id):
         project = get_object_or_404(Project, id=project_id)
 
-        # somente admin pode adicionar membros
-        if not request.user.is_superuser:
-            return Response({"detail": "Apenas admins podem adicionar membros"}, status=status.HTTP_403_FORBIDDEN)
+        # Verificar se o usuário atual é o Product Owner do projeto
+        is_po = ProjectMembership.objects.filter(
+            user=request.user,
+            project=project,
+            role='PO'
+        ).exists()
+
+        if not is_po:
+            return Response(
+                {"detail": "Apenas o Product Owner pode adicionar membros"},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         email = request.data.get("email")
-        if not email:
-            return Response({"detail": "Informe o email do usuário"}, status=400)
+        role = request.data.get("role")
+
+        if not email or not role:
+            return Response(
+                {"detail": "Informe o email do usuário e o papel (role)"},
+                status=400
+            )
+
+        if role not in ['SM', 'DEV']:
+            return Response(
+                {"detail": "Papel inválido. Use 'SM' para Scrum Master ou 'DEV' para Developer"},
+                status=400
+            )
 
         try:
             added_user = User.objects.get(email=email)
@@ -67,10 +89,14 @@ class AddMemberView(APIView):
         if ProjectMembership.objects.filter(user=added_user, project=project).exists():
             return Response({"detail": "Usuário já é membro do projeto"}, status=400)
 
-        ProjectMembership.objects.create(user=added_user, project=project, role="DEV")
+        ProjectMembership.objects.create(
+            user=added_user,
+            project=project,
+            role=role
+        )
 
         return Response(
-            {"detail": f"{added_user.username} adicionado como DEV ao projeto {project.name}"},
+            {"detail": f"{added_user.username} adicionado como {role} ao projeto {project.name}"},
             status=200
         )
 

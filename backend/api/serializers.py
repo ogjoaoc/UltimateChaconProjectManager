@@ -8,20 +8,19 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email", "role", "bio", "is_superuser"]
+        fields = ["id", "username", "email", "bio", "is_superuser"]
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     class Meta:
         model = User
-        fields = ("username", "email", "password", "role", "bio")
+        fields = ("username", "email", "password", "bio")
 
     def create(self, validated_data):
         user = User.objects.create_user(
             username=validated_data["username"],
             email=validated_data.get("email"),
             password=validated_data["password"],
-            role=validated_data.get("role", "DEV"),
             bio=validated_data.get("bio", "")
         )
         return user
@@ -37,8 +36,10 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     def get_members(self, obj):
         memberships = ProjectMembership.objects.filter(project=obj)
-        users = [m.user for m in memberships]
-        return UserSerializer(users, many=True).data
+        return [{
+            **UserSerializer(m.user).data,
+            'role': m.role
+        } for m in memberships]
 
     def get_tasks(self, obj):
         tasks = Task.objects.filter(project=obj)
