@@ -7,9 +7,12 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
-from django.db.models import Q
-from .models import Project, Task, ProjectMembership
-from .serializers import ProjectSerializer, TaskSerializer, RegisterSerializer, UserSerializer
+from django.db.models import Q, Case, When, IntegerField
+from .models import Project, ProjectMembership, UserStory, ProductBacklogItem
+from .serializers import (
+    ProjectSerializer, RegisterSerializer, UserSerializer,
+    UserStorySerializer, ProductBacklogItemSerializer
+)
 
 User = get_user_model()
 
@@ -30,22 +33,66 @@ class ProjectViewSet(viewsets.ModelViewSet):
             role='PO'
         )
 
-# em desenvolvimento...
-class TaskViewSet(viewsets.ModelViewSet):
-    serializer_class = TaskSerializer
+class UserStoryViewSet(viewsets.ModelViewSet):
+    serializer_class = UserStorySerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return Task.objects.all()
-        return Task.objects.filter(project__members=user).distinct()
+        project_id = self.kwargs.get('project_pk')  
+        project = get_object_or_404(Project, id=project_id)
+        if ProjectMembership.objects.filter(user=self.request.user, project=project).exists():
+            return UserStory.objects.filter(project=project)
+        return UserStory.objects.none()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        context['view'] = self
+        context['project_id'] = self.kwargs.get('project_pk')  
+
+class ProductBacklogItemViewSet(viewsets.ModelViewSet):
+    serializer_class = ProductBacklogItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    def get_queryset(self):
+        project_id = self.kwargs.get('project_pk')
+        if not project_id:
+            return ProductBacklogItem.objects.none()
+
+        project = get_object_or_404(Project, id=project_id)
+        if ProjectMembership.objects.filter(user=self.request.user, project=project).exists():
+            # HIGH -> MEDIUM -> LOW
+            return ProductBacklogItem.objects.filter(project=project).annotate(
+                priority_order=Case(
+                    When(priority='HIGH', then=0),
+                    When(priority='MEDIUM', then=1),
+                    When(priority='LOW', then=2),
+                    output_field=IntegerField(),
+                )
+            ).order_by('priority_order', '-created_at')
+        return ProductBacklogItem.objects.none()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        project_id = self.kwargs.get('project_pk')
+        context['project'] = get_object_or_404(Project, id=project_id)
+        context['request'] = self.request
+        return context
 
     def perform_create(self, serializer):
-        project = serializer.validated_data.get('project')
-        if not (self.request.user.is_superuser or ProjectMembership.objects.filter(user=self.request.user, project=project).exists()):
-            raise PermissionDenied("Você não tem permissão para adicionar tarefas neste projeto")
-        serializer.save()
+        project_id = self.kwargs.get('project_pk')
+        project = get_object_or_404(Project, id=project_id)
+        membership = ProjectMembership.objects.filter(
+            user=self.request.user,
+            project=project,
+            role='PO'
+        ).first()
+        
+        if not membership:
+            raise PermissionDenied("Apenas o Product Owner pode gerenciar o backlog")
+        
+        serializer.save(project=project, created_by=self.request.user)
+
+
 
 class AddMemberView(APIView):
     permission_classes = [IsAuthenticated]
@@ -53,7 +100,7 @@ class AddMemberView(APIView):
     def post(self, request, project_id):
         project = get_object_or_404(Project, id=project_id)
 
-        # Verificar se o usuário atual é o Product Owner do projeto
+        
         is_po = ProjectMembership.objects.filter(
             user=request.user,
             project=project,

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
-from .models import Project, Task, ProjectMembership
+from .models import Project, ProjectMembership, UserStory, ProductBacklogItem
 
 User = get_user_model()
 
@@ -28,11 +28,10 @@ class RegisterSerializer(serializers.ModelSerializer):
 class ProjectSerializer(serializers.ModelSerializer):
     members = serializers.SerializerMethodField()
     owner = UserSerializer(read_only=True)
-    tasks = serializers.SerializerMethodField()  
 
     class Meta:
         model = Project
-        fields = ["id", "name", "description", "owner", "members", "tasks"]
+        fields = ["id", "name", "description", "owner", "members"]
 
     def get_members(self, obj):
         memberships = ProjectMembership.objects.filter(project=obj)
@@ -41,21 +40,86 @@ class ProjectSerializer(serializers.ModelSerializer):
             'role': m.role
         } for m in memberships]
 
-    def get_tasks(self, obj):
-        tasks = Task.objects.filter(project=obj)
-        return TaskSerializer(tasks, many=True).data
+    
 
-class TaskSerializer(serializers.ModelSerializer):
+class UserStorySerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    
     class Meta:
-        model = Task
-        fields = "__all__"
+        model = UserStory
+        fields = ["id", "title", "description", "acceptance_criteria", "created_at", "created_by"]
 
-    def validate_project(self, project):
+    def to_internal_value(self, data):
+        for field in ['title', 'description']:
+            if field not in data or not str(data.get(field)).strip():
+                raise ValidationError({field: f"O campo {field} é obrigatório"})
+        
+        for field in ['title', 'description', 'acceptance_criteria']:
+            if field in data and data[field] is not None:
+                data[field] = str(data[field]).strip()
+        
+        return super().to_internal_value(data)
+
+    def create(self, validated_data):
         request = self.context.get('request')
+        project_id = self.context.get('project_id')  # Pegando do contexto ao invés da view
+
+        if not request:
+            raise ValidationError({"detail": "Contexto inválido da requisição"})
+
+        if not project_id:
+            raise ValidationError({"detail": "ID do projeto não especificado"})
+        
+        try:
+            project = Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            raise ValidationError({"detail": f"Projeto {project_id} não encontrado"})
+        
+        membership = ProjectMembership.objects.filter(
+            user=request.user, 
+            project=project,
+            role='PO'
+        ).first()
+        
+        if not membership:
+            raise ValidationError({
+                "detail": "Apenas o Product Owner pode gerenciar histórias de usuário"
+            })
+        
+        return UserStory.objects.create(
+            **validated_data,
+            project=project,
+            created_by=request.user
+        )
+
+class ProductBacklogItemSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+    user_story = UserStorySerializer(read_only=True)
+    user_story_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = ProductBacklogItem
+        fields = ["id", "title", "description", "priority", "created_at", "created_by", "user_story", "user_story_id"]
+
+    def validate(self, data):
+        request = self.context.get('request')
+        project = self.context.get('project')
+        
+        if not project:
+            raise ValidationError("Projeto não especificado")
+
         membership = ProjectMembership.objects.filter(user=request.user, project=project).first()
-        if not membership or membership.role not in ["PO", "SM"]:
-            raise ValidationError("Você não tem permissão para adicionar tarefas neste projeto.")
-            
+        if not membership or membership.role != "PO":
+            raise ValidationError("Apenas o Product Owner pode gerenciar o backlog.")
+
+        user_story = UserStory.objects.filter(id=data['user_story_id'], project=project).first()
+        if not user_story:
+            raise ValidationError("História de usuário não encontrada neste projeto")
+
+        return data
+
+
 
 '''
 Serializer ajuda na conversa entre o front e back

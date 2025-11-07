@@ -43,19 +43,35 @@ class ProjectMembership(models.Model):
         return f"{self.user.username} como {self.get_role_display()} em {self.project.name}"
 
 
-class Task(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks")
+class UserStory(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="user_stories")
     title = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    done = models.BooleanField(default=False)
-    
-    assigned_to = models.ForeignKey(
-        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="tasks"
-    )
+    description = models.TextField()
+    acceptance_criteria = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
     def __str__(self):
         return self.title
+
+class ProductBacklogItem(models.Model):
+    PRIORITY_CHOICES = [
+        ('HIGH', 'Alta'),
+        ('MEDIUM', 'Média'),
+        ('LOW', 'Baixa'),
+    ]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="backlog_items")
+    user_story = models.ForeignKey(UserStory, on_delete=models.CASCADE, related_name="backlog_items")
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    priority = models.CharField(max_length=6, choices=PRIORITY_CHOICES, default='MEDIUM')
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return self.title
+
 
 '''
 Aqui é bem importante, os models são só classes do python, que depois são 

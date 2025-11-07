@@ -1,7 +1,7 @@
 from django.contrib import admin
-from .models import Project, Task
+from .models import Project
+
 admin.site.register(Project)
-admin.site.register(Task)
 
 ''' 
 esse arquivo serve pra registrar os modelos no "painel de admin"

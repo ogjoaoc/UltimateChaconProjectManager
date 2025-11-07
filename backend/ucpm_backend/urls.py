@@ -1,12 +1,20 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
-from api.views import ProjectViewSet, TaskViewSet, AddMemberView, register_view, me_view
+from rest_framework_nested import routers as nested_routers
+from api.views import (
+    ProjectViewSet, AddMemberView, register_view, me_view,
+    UserStoryViewSet, ProductBacklogItemViewSet
+)
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = routers.DefaultRouter()
 router.register(r'projects', ProjectViewSet, basename='projects')
-router.register(r'tasks', TaskViewSet, basename='tasks')
+
+# URLs aninhadas para histórias de usuário e backlog
+projects_router = nested_routers.NestedDefaultRouter(router, r'projects', lookup='project')
+projects_router.register(r'user-stories', UserStoryViewSet, basename='project-user-stories')
+projects_router.register(r'backlog', ProductBacklogItemViewSet, basename='project-backlog')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -15,6 +23,7 @@ urlpatterns = [
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/users/me/', me_view, name='me'),
     path('api/', include(router.urls)),
+    path('api/', include(projects_router.urls)),
     path("api/projects/<int:project_id>/add_member/", AddMemberView.as_view(), name="add-member")
 ]
 
