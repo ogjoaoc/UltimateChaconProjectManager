@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import UserStoriesTab from "@/components/project/UserStoriesTab";
 import ProductBacklogTab from "@/components/project/ProductBacklogTab";
 import SprintsTab from "@/components/project/SprintsTab";
+import SprintPlanTab from "@/components/project/SprintsTab";
 
 type User = {
   id: number;
@@ -83,6 +84,7 @@ const ProjectPage = () => {
           <TabsTrigger value="user-stories">Histórias de Usuário</TabsTrigger>
           <TabsTrigger value="product-backlog">Backlog do Produto</TabsTrigger>
           <TabsTrigger value="sprints">Sprints</TabsTrigger>
+          <TabsTrigger value="sprint-plan">Plano da Sprint</TabsTrigger>
         </TabsList>
 
         <TabsContent value="user-stories">
@@ -95,6 +97,10 @@ const ProjectPage = () => {
 
         <TabsContent value="sprints">
           <SprintsTab projectId={project.id} isProductOwner={isProductOwner} />
+        </TabsContent>
+
+        <TabsContent value="sprint-plan">
+          <SprintPlanTab projectId={project.id} isProductOwner={isProductOwner} />
         </TabsContent>
       </Tabs>
     </div>
