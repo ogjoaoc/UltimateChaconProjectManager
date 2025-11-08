@@ -4,7 +4,8 @@ from rest_framework import routers
 from rest_framework_nested import routers as nested_routers
 from api.views import (
     ProjectViewSet, AddMemberView, register_view, me_view,
-    UserStoryViewSet, ProductBacklogItemViewSet
+    UserStoryViewSet, ProductBacklogItemViewSet,
+    RemoveMemberView
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -23,7 +24,8 @@ urlpatterns = [
     path('api/users/me/', me_view, name='me'),
     path('api/', include(router.urls)),
     path('api/', include(projects_router.urls)),
-    path("api/projects/<int:project_id>/add_member/", AddMemberView.as_view(), name="add-member")
+    path("api/projects/<int:project_id>/add_member/", AddMemberView.as_view(), name="add-member"),
+    path("api/projects/<int:project_id>/remove_member/", RemoveMemberView.as_view(), name="remove-member")
 ]
 
 

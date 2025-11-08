@@ -9,6 +9,7 @@ import UserStoriesTab from "@/components/project/UserStoriesTab";
 import ProductBacklogTab from "@/components/project/ProductBacklogTab";
 import SprintsTab from "@/components/project/SprintsTab";
 import SprintPlanTab from "@/components/project/SprintsTab";
+import MembersTab from "@/components/project/MembersTab";
 
 type User = {
   id: number;
@@ -85,6 +86,7 @@ const ProjectPage = () => {
           <TabsTrigger value="product-backlog">Backlog do Produto</TabsTrigger>
           <TabsTrigger value="sprints">Sprints</TabsTrigger>
           <TabsTrigger value="sprint-plan">Plano da Sprint</TabsTrigger>
+          <TabsTrigger value="members">Membros</TabsTrigger>
         </TabsList>
 
         <TabsContent value="user-stories">
@@ -101,6 +103,10 @@ const ProjectPage = () => {
 
         <TabsContent value="sprint-plan">
           <SprintPlanTab projectId={project.id} isProductOwner={isProductOwner} />
+        </TabsContent>
+
+        <TabsContent value="members">
+          <MembersTab projectId={project.id} isProductOwner={isProductOwner} />
         </TabsContent>
       </Tabs>
     </div>

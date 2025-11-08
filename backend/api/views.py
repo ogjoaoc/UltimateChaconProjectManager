@@ -160,6 +160,64 @@ class AddMemberView(APIView):
             {"detail": f"{added_user.username} adicionado como {role} ao projeto {project.name}"},
             status=200
         )
+class RemoveMemberView(APIView):
+    """
+    View personalizada para remover um membro de um projeto.
+    Espera um POST com {'user_id': <id_do_usuario>}
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, project_id):
+        # 1. Encontra o projeto
+        project = get_object_or_404(Project, id=project_id)
+
+        # 2. Verifica se o usuário que faz a requisição é o Dono (PO)
+        if request.user != project.owner:
+            return Response(
+                {"detail": "Apenas o Product Owner pode remover membros."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # 3. Pega o ID do usuário a ser removido (do corpo da requisição)
+        user_id_to_remove = request.data.get('user_id')
+        if not user_id_to_remove:
+            return Response(
+                {"detail": "O 'user_id' do membro é obrigatório."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 4. Verifica se o PO não está tentando se remover
+        if request.user.id == user_id_to_remove:
+            return Response(
+                {"detail": "O Product Owner não pode se remover do projeto."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 5. Encontra o usuário que será removido
+        user_to_remove = get_object_or_404(User, id=user_id_to_remove)
+
+        # 6. Encontra o 'vínculo' (ProjectMembership) e o deleta
+        try:
+            membership = ProjectMembership.objects.get(
+                project=project,
+                user=user_to_remove
+            )
+            membership.delete()
+            return Response(
+                {"detail": "Membro removido com sucesso."},
+                status=status.HTTP_200_OK
+            )
+        except ProjectMembership.DoesNotExist:
+            return Response(
+                {"detail": "Este usuário não é membro do projeto."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"detail": f"Um erro ocorreu: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
