@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { LogOut, TrendingUp, User as UserIcon } from "lucide-react";
+import ProfileModal from "@/components/ui/ProfileModal";
 
 // --- TIPAGENS ---
 type User = {
@@ -196,6 +197,14 @@ const Dashboard = () => {
           </Button>
         </div>
       </header>
+
+      {/* Modal de perfil do usuário */}
+      <ProfileModal
+        open={isProfileModalOpen}
+        onOpenChange={(o) => setIsProfileModalOpen(o)}
+        user={user}
+        onSaved={(u) => setUser(u)}
+      />
 
       {/* KPIs */}
       <section className="grid gap-4 md:grid-cols-2 mb-6">
