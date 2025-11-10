@@ -241,7 +241,24 @@ def register_view(request):
         }, status=201)
     return Response(serializer.errors, status=400)
 
-@api_view(["GET"])
+@api_view(["GET", "PATCH"])
 @permission_classes([permissions.IsAuthenticated])
 def me_view(request):
-    return Response(UserSerializer(request.user).data)
+    user = request.user
+    
+    # GET: Retorna os dados do usuário
+    if request.method == "GET":
+        serializer = UserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    # PATCH: Atualiza os dados do usuário
+    elif request.method == "PATCH":
+        serializer = UserSerializer(user, data=request.data, partial=True)
+        
+        # Valida e salva as alterações
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
+        
+        # Se os dados forem inválidos, retorna os erros
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

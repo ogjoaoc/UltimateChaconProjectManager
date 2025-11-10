@@ -6,9 +6,36 @@ from .models import Project, ProjectMembership, UserStory, ProductBacklogItem
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
+    # Permitir que a senha seja escrita, mas não lida
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    
     class Meta:
         model = User
-        fields = ["id", "username", "email", "bio", "is_superuser"]
+        fields = ["id", "username", "email", "bio", "is_superuser", "password"]
+        read_only_fields = ["is_superuser"] # Evita que o is_superuser seja alterado via API
+
+        # Define regras adicionais para os campos
+        extra_kwargs = {
+            'password': {'write_only': True, 'required': False},
+            'email': {'required': False},
+            'username': {'required': False},
+        }
+
+    def validate_email(self, value):
+        if value and User.objects.filter(email=value).exclude(id=self.instance.id).exists():
+            raise ValidationError("Este email já está em uso.")
+        return value 
+    
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        update_instance = super().update(instance, validated_data)
+
+        if password:
+            update_instance.set_password(password)
+            update_instance.save()
+        
+        return update_instance
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
