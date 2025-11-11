@@ -56,12 +56,19 @@ class UserStory(models.Model):
 
 
 class Sprint(models.Model):
+    # adicionar status?
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="sprints")
     name = models.CharField(max_length=100)
     date_begin = models.DateField()
     date_end = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        unique_together = ('project', 'name')
+        
+    def __str__(self):
+        return f"{self.name} ({self.project.name})"
 
 class ProductBacklogItem(models.Model):
     PRIORITY_CHOICES = [
