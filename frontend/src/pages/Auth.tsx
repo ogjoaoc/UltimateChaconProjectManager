@@ -77,7 +77,7 @@ const Auth: React.FC = () => {
         throw new Error(msg);
       }
       if (data.access) setTokens(data.access, data.refresh || "");
-      toast.success("Conta criada e logado");
+      toast.success("Conta criada e logada");
       navigate("/dashboard");
     } catch (err: any) {
       toast.error(err.message || "Erro ao cadastrar");

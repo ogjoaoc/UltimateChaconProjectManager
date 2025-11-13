@@ -8,18 +8,20 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     # Permitir que a senha seja escrita, mas não lida
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    
+    username = serializers.CharField(max_length=150, required=False, validators=[])
+
     class Meta:
         model = User
         fields = ["id", "username", "email", "bio", "is_superuser", "password"]
         read_only_fields = ["is_superuser"] # Evita que o is_superuser seja alterado via API
 
         # Define regras adicionais para os campos
-        extra_kwargs = {
-            'password': {'write_only': True, 'required': False},
-            'email': {'required': False},
-            'username': {'required': False},
-        }
+        extra_kwargs = {'email': {'required': True, 'allow_blank': False},}
+
+    def validate_username(self, value):
+        if value and User.objects.filter(username=value).exclude(id=self.instance.id).exists():
+            raise ValidationError("Este nome de usuário já está em uso.")
+        return value
 
     def validate_email(self, value):
         if value and User.objects.filter(email=value).exclude(id=self.instance.id).exists():

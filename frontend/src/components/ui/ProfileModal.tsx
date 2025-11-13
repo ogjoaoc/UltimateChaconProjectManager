@@ -65,9 +65,40 @@ export default function ProfileModal({
       toast.success("Perfil atualizado");
       onSaved && onSaved(updated);
       onOpenChange(false);
+    
     } catch (err: any) {
-      console.error("Erro ao atualizar perfil:", err);
-      toast.error(err.message || "Erro ao atualizar perfil");
+      console.error("Objeto de erro recebido:", err); // Para debug
+      
+      let errorMessage = "Erro ao atualizar perfil"; // Mensagem padrão
+
+      try {
+        // Padronização das mensagens de erro
+        if (err && typeof err === "object" && !err.message) {
+          const fieldErrors = Object.values(err).flat();
+          if (fieldErrors.length > 0) {
+            errorMessage = fieldErrors.join(" ");
+          }
+        } else if (err.message) {
+          errorMessage = err.message;
+        } else if (typeof err === "string") {
+            errorMessage = err;
+        }
+
+        // Limpa mensagens que começam com nomes de campo
+        const parts = errorMessage.split(":");
+        const possibleFields = ['username', 'email', 'detail'];
+        
+        if (parts.length > 1 && possibleFields.includes(parts[0].trim())) {
+          errorMessage = parts.slice(1).join(":").trim();
+        }
+
+      } catch (e) {
+        console.error("Falha ao processar o erro:", e);
+        errorMessage = "Ocorreu um erro ao atualizar o perfil.";
+      }
+      
+      toast.error(errorMessage);
+
     } finally {
       setSaving(false);
     }
