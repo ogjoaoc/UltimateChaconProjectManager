@@ -176,7 +176,7 @@ class SprintSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sprint
         fields = [
-            'id', 'project', 'name', 'goal',
+            'id', 'project', 'name',
             'start_date', 'end_date', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']

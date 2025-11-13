@@ -59,8 +59,8 @@ class Sprint(models.Model):
     # adicionar status?
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="sprints")
     name = models.CharField(max_length=100)
-    date_begin = models.DateField()
-    date_end = models.DateField()
+    start_date = models.DateField()
+    end_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 

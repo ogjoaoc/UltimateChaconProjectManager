@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
@@ -8,10 +8,10 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Case, When, IntegerField
-from .models import Project, ProjectMembership, UserStory, ProductBacklogItem
+from .models import Project, ProjectMembership, UserStory, ProductBacklogItem, Sprint
 from .serializers import (
     ProjectSerializer, RegisterSerializer, UserSerializer,
-    UserStorySerializer, ProductBacklogItemSerializer
+    UserStorySerializer, ProductBacklogItemSerializer, SprintSerializer
 )
 
 User = get_user_model()
@@ -218,6 +218,90 @@ class RemoveMemberView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+class SprintViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet responsável por gerenciar Sprints.
+    Permite listar, criar, atualizar e remover sprints de um projeto.
+    Somente o Scrum Master (SM) pode criar novas sprints e adicionar itens.
+    """
+    serializer_class = SprintSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Retorna apenas as sprints dos projetos que o usuário participa.
+        """
+        user = self.request.user
+        return Sprint.objects.filter(
+            project__in=Project.objects.filter(
+                Q(owner=user) | Q(members=user)
+            )
+        ).distinct()
+
+    def perform_create(self, serializer):
+        """
+        Cria uma nova sprint apenas se o usuário for Scrum Master (SM) do projeto.
+        """
+        project = serializer.validated_data.get("project")
+        membership = ProjectMembership.objects.filter(
+            user=self.request.user,
+            project=project,
+            role="SM"
+        ).first()
+
+        if not membership:
+            raise PermissionDenied("Apenas o Scrum Master pode criar sprints neste projeto.")
+
+        serializer.save()
+
+    @action(detail=True, methods=["post"], url_path="add-items")
+    def add_items(self, request, pk=None):
+        """
+        Adiciona itens do Product Backlog ao Sprint Backlog.
+        Apenas o Scrum Master do projeto pode executar essa ação.
+
+        Espera no corpo da requisição:
+        {
+            "items": [1, 2, 3]
+        }
+        """
+        sprint = get_object_or_404(Sprint, pk=pk)
+        project = sprint.project
+
+        # Verifica se o usuário é Scrum Master do projeto
+        if not ProjectMembership.objects.filter(user=request.user, project=project, role="SM").exists():
+            return Response(
+                {"detail": "Apenas o Scrum Master pode adicionar itens à sprint."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        items = request.data.get("items")
+        if not isinstance(items, list):
+            return Response(
+                {"detail": "O campo 'items' deve ser uma lista de IDs de itens do backlog."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Seleciona apenas itens válidos (pertencentes ao projeto e sem sprint associada)
+        backlog_items = ProductBacklogItem.objects.filter(
+            id__in=items,
+            project=project,
+            sprint__isnull=True
+        )
+
+        if not backlog_items.exists():
+            return Response(
+                {"detail": "Nenhum item válido encontrado para adicionar."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        count = backlog_items.update(sprint=sprint)
+
+        return Response(
+            {"detail": f"{count} item(s) adicionados ao Sprint Backlog com sucesso."},
+            status=status.HTTP_200_OK
+        )
+
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
@@ -262,3 +346,5 @@ def me_view(request):
         
         # Se os dados forem inválidos, retorna os erros
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
