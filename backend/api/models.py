@@ -63,6 +63,10 @@ class Sprint(models.Model):
     end_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    objective = models.TextField(blank=True)
+    increment = models.TextField(blank=True)
+    tech = models.TextField(blank=True)
+    team = models.TextField(blank=True)
 
     class Meta:
         unique_together = ('project', 'name')

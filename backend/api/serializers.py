@@ -181,12 +181,13 @@ class SprintSerializer(serializers.ModelSerializer):
         model = Sprint
         fields = [
             'id', 'project', 'name',
-            'start_date', 'end_date', 'created_at'
+            'start_date', 'end_date', 'created_at',
+            'objective', 'increment', 'tech', 'team'
         ]
         read_only_fields = ['id', 'project', 'created_at']
 
     def validate(self, data):
-        #validacao data de inicio e fim
+        # validação data de inicio e fim
         start = data.get('start_date')
         end = data.get('end_date')
         if start and end and start > end:
@@ -206,6 +207,11 @@ class SprintSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'name': 'Já existe uma sprint com este nome neste projeto.'
                 })
+
+        # Normaliza campos textuais (remove espaços desnecessários)
+        for f in ('objective', 'increment', 'tech', 'team'):
+            if f in data and data[f] is not None:
+                data[f] = str(data[f]).strip()
         
         return data
 
