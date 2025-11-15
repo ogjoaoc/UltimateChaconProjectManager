@@ -268,15 +268,14 @@ class SprintViewSet(viewsets.ModelViewSet):
         """
         project_id = self.kwargs.get('project_pk')
         project = get_object_or_404(Project, id=project_id)
-        
+        # Agora permitimos que qualquer membro do projeto crie/edite sprints.
         membership = ProjectMembership.objects.filter(
             user=self.request.user,
-            project=project,
-            role="SM"
+            project=project
         ).first()
 
         if not membership:
-            raise PermissionDenied("Apenas o Scrum Master pode criar sprints neste projeto.")
+            raise PermissionDenied("Apenas membros do projeto podem criar sprints neste projeto.")
 
         serializer.save(project=project, created_by=self.request.user)
 
