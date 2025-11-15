@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import UserStoriesTab from "@/components/project/UserStoriesTab";
 import ProductBacklogTab from "@/components/project/ProductBacklogTab";
 import SprintsTab from "@/components/project/SprintsTab";
-import SprintPlanTab from "@/components/project/SprintsTab";
+import SprintPlanTab from "@/components/project/SprintPlanTab";
 import MembersTab from "@/components/project/MembersTab";
 
 type User = {
@@ -56,7 +56,11 @@ const ProjectPage = () => {
   if (loading) return <div>Carregando...</div>;
   if (!project || !currentUser) return null;
 
-  const isProductOwner = project.owner.id === currentUser.id;
+  // Apenas Scrum Master (role 'SM') tem permissão de gerenciar o projeto
+  // (não consideramos mais somente o owner)
+  const canManageProject = project.members?.some(
+    (m) => m.id === currentUser.id && m.role === "SM"
+  );
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -90,23 +94,23 @@ const ProjectPage = () => {
         </TabsList>
 
         <TabsContent value="user-stories">
-          <UserStoriesTab projectId={project.id} isProductOwner={isProductOwner} />
+          <UserStoriesTab projectId={project.id} canManageProject={true} /> 
         </TabsContent>
 
         <TabsContent value="product-backlog">
-          <ProductBacklogTab projectId={project.id} isProductOwner={isProductOwner} />
+          <ProductBacklogTab projectId={project.id} canManageProject={true} />
         </TabsContent>
 
         <TabsContent value="sprints">
-          <SprintsTab projectId={project.id} isProductOwner={isProductOwner} />
+          <SprintsTab projectId={project.id} canManageProject={canManageProject} />
         </TabsContent>
 
         <TabsContent value="sprint-plan">
-          <SprintPlanTab projectId={project.id} isProductOwner={isProductOwner} />
+          <SprintPlanTab projectId={project.id} canManageProject={canManageProject} />
         </TabsContent>
 
         <TabsContent value="members">
-          <MembersTab projectId={project.id} isProductOwner={isProductOwner} />
+          <MembersTab projectId={project.id} canManageProject={canManageProject} />
         </TabsContent>
       </Tabs>
     </div>

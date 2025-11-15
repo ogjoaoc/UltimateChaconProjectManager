@@ -29,10 +29,10 @@ type BacklogItem = {
 
 type Props = {
   projectId: number;
-  isProductOwner: boolean;
+  canManageProject: boolean;
 };
 
-export default function ProductBacklogTab({ projectId, isProductOwner }: Props) {
+export default function ProductBacklogTab({ projectId, canManageProject }: Props) {
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [userStories, setUserStories] = useState<UserStory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,7 +133,7 @@ export default function ProductBacklogTab({ projectId, isProductOwner }: Props) 
 
   return (
     <div className="space-y-4">
-      {isProductOwner && (
+      {canManageProject && (
         <Button onClick={openCreateDialog}>Novo Item de Backlog</Button>
       )}
 
@@ -159,7 +159,7 @@ export default function ProductBacklogTab({ projectId, isProductOwner }: Props) 
                 <div className="text-sm text-muted-foreground">
                   <strong>História:</strong> {item.user_story.title}
                 </div>
-                {isProductOwner && (
+                {canManageProject && (
                   <div className="flex gap-2 mt-4">
                     <Button
                       size="sm"

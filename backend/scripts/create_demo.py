@@ -21,7 +21,7 @@ p, created = Project.objects.get_or_create(name='Projeto Exemplo', defaults={'de
 if created:
     print('Created project', p.id)
     try:
-        ProjectMembership.objects.create(user=og, project=p, role='PO')
+        ProjectMembership.objects.create(user=og, project=p, role='SM')
     except Exception as e:
         print('Error creating membership for owner:', e)
 else:

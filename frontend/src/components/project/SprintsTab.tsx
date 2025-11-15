@@ -20,10 +20,10 @@ type Sprint = {
 
 type Props = {
   projectId: number;
-  isProductOwner: boolean;
+  canManageProject: boolean;
 };
 
-export default function SprintsTab({ projectId, isProductOwner }: Props) {
+export default function SprintsTab({ projectId, canManageProject }: Props) {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();

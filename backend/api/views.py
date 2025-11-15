@@ -26,10 +26,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         project = serializer.save(owner=self.request.user)
-        ProjectMembership.objects.create(
+        # Garante que o criador seja atribuído como Scrum Master (SM).
+        # Usamos update_or_create para sobrescrever qualquer membership pré-existente
+        # (por exemplo se um script ou lógica externa criou uma entrada PO).
+        ProjectMembership.objects.update_or_create(
             user=self.request.user,
             project=project,
-            role='SM'
+            defaults={'role': 'SM'}
         )
 
 class UserStoryViewSet(viewsets.ModelViewSet):
@@ -136,9 +139,10 @@ class AddMemberView(APIView):
                 status=400
             )
 
-        if role not in ['SM', 'DEV']:
+        # Permitir também atribuir Product Owner (PO) via convite
+        if role not in ['PO', 'SM', 'DEV']:
             return Response(
-                {"detail": "Papel inválido. Use 'SM' para Scrum Master ou 'DEV' para Developer"},
+                {"detail": "Papel inválido. Use 'PO' para Product Owner, 'SM' para Scrum Master ou 'DEV' para Developer"},
                 status=400
             )
 

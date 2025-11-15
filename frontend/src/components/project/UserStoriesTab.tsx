@@ -22,10 +22,10 @@ type UserStory = {
 
 type Props = {
   projectId: number;
-  isProductOwner: boolean;
+  canManageProject: boolean;
 };
 
-export default function UserStoriesTab({ projectId, isProductOwner }: Props) {
+export default function UserStoriesTab({ projectId, canManageProject }: Props) {
   const [stories, setStories] = useState<UserStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -116,7 +116,7 @@ export default function UserStoriesTab({ projectId, isProductOwner }: Props) {
 
   return (
     <div className="space-y-4">
-      {isProductOwner && (
+  {canManageProject && (
         <Button onClick={openCreateDialog}>Nova História de Usuário</Button>
       )}
 
@@ -135,7 +135,7 @@ export default function UserStoriesTab({ projectId, isProductOwner }: Props) {
                     <p className="text-sm">{story.acceptance_criteria}</p>
                   </div>
                 )}
-                {isProductOwner && (
+                {canManageProject && (
                   <div className="flex gap-2 mt-4">
                     <Button
                       size="sm"

@@ -93,7 +93,7 @@ const Dashboard = () => {
 
   const [openAddProjectId, setOpenAddProjectId] = useState<number | null>(null);
   const [addEmail, setAddEmail] = useState("");
-  const [addRole, setAddRole] = useState<"SM" | "DEV">("DEV");
+  const [addRole, setAddRole] = useState<"PO" | "SM" | "DEV">("DEV");
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
@@ -312,8 +312,9 @@ const Dashboard = () => {
                         <select
                           className="w-full rounded-md border border-input px-3 py-2"
                           value={addRole}
-                          onChange={(e) => setAddRole(e.target.value as "SM" | "DEV")}
+                          onChange={(e) => setAddRole(e.target.value as "PO" | "SM" | "DEV")}
                         >
+                          <option value="PO">Product Owner</option>
                           <option value="SM">Scrum Master</option>
                           <option value="DEV">Developer</option>
                         </select>

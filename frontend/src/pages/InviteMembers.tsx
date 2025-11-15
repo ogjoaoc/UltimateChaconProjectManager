@@ -28,7 +28,7 @@ const InviteMembers = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"SM" | "DEV">("DEV");
+  const [role, setRole] = useState<"PO" | "SM" | "DEV">("DEV");
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
 
@@ -46,9 +46,10 @@ const InviteMembers = () => {
         setProject(proj);
         setCurrentUser(me);
 
-        // Redireciona se não for o Product Owner
-        if (proj.owner.id !== me.id) {
-          toast.error("Apenas o Product Owner pode gerenciar membros");
+        // Redireciona se não for Scrum Master (SM)
+        const isSM = proj.members?.some((m: any) => m.id === me.id && m.role === 'SM');
+        if (!isSM) {
+          toast.error("Apenas o Scrum Master pode gerenciar membros");
           navigate("/dashboard");
         }
       } catch (err: any) {
@@ -65,9 +66,10 @@ const InviteMembers = () => {
     if (!role) return toast.error("Selecione o papel do usuário");
     if (!project?.owner || !currentUser) return;
     
-    // Verifica se é o Product Owner
-    if (project.owner.id !== currentUser.id) {
-      toast.error("Apenas o Product Owner pode adicionar membros");
+    // Verifica se é Scrum Master (SM)
+    const isSM = project.members?.some((m: any) => m.id === currentUser.id && m.role === 'SM');
+    if (!isSM) {
+      toast.error("Apenas o Scrum Master pode adicionar membros");
       return;
     }
 
@@ -114,9 +116,10 @@ const InviteMembers = () => {
             />
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as "SM" | "DEV")}
+              onChange={(e) => setRole(e.target.value as "PO" | "SM" | "DEV")}
               className="rounded-md border border-input px-3 py-2"
             >
+              <option value="PO">Product Owner</option>
               <option value="SM">Scrum Master</option>
               <option value="DEV">Developer</option>
             </select>

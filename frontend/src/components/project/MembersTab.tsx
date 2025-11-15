@@ -20,7 +20,7 @@ type ProductOwner ={
 
 type Props = {
   projectId: number;
-  isProductOwner: boolean;
+  canManageProject: boolean;
 };
 
 // Função auxiliar para exibir o nome completo do papel do membro
@@ -32,8 +32,9 @@ function getRoleDisplayName(role: string) {
 }
 
 
-export default function MembersTab({ projectId, isProductOwner }: Props) {
+export default function MembersTab({ projectId, canManageProject }: Props) {
     const [owner, setOwner] = useState<ProductOwner | null>(null);
+    const [ownerRole, setOwnerRole] = useState<string | null>(null);
     const [members, setMembers] = useState<ProjectMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [removingId, setRemovingId] = useState<number | null>(null);
@@ -54,6 +55,12 @@ export default function MembersTab({ projectId, isProductOwner }: Props) {
       const otherMembers = projectData.members.filter(
         (member: ProjectMember) => member.id !== projectData.owner.id
       );
+
+      // Determina o papel real do owner buscando nos memberships retornados
+      const ownerMembership = projectData.members.find(
+        (m: ProjectMember) => m.id === projectData.owner.id
+      );
+      setOwnerRole(ownerMembership ? ownerMembership.role : "PO");
 
       setMembers(otherMembers);
 
@@ -115,9 +122,9 @@ export default function MembersTab({ projectId, isProductOwner }: Props) {
                 <p className="text-sm text-muted-foreground">
                     Email: {owner.email || "Sem email cadastrado"}
                 </p>
-                <p className="text-sm font-semibold text-blue-600">
-                    Função: {getRoleDisplayName("PO")}
-                </p>
+        <p className="text-sm font-semibold text-blue-600">
+          Função: {getRoleDisplayName(ownerRole || "PO")}
+        </p>
             </CardContent>
         </Card> 
         )}
@@ -135,7 +142,7 @@ export default function MembersTab({ projectId, isProductOwner }: Props) {
                     Função: {getRoleDisplayName(member.role)}
                 </p>
             </CardContent>
-            {isProductOwner && (
+            {canManageProject && (
               <CardFooter className="pt-4"> {/* pt-4 = padding-top */}
                 <Button
                   variant="destructive" // "destructive" dá a cor vermelha de perigo
