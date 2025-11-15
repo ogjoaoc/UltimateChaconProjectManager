@@ -229,20 +229,35 @@ class SprintViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Retorna apenas as sprints dos projetos que o usuário participa.
+        Retorna apenas as sprints do projeto específico que o usuário participa.
         """
-        user = self.request.user
-        return Sprint.objects.filter(
-            project__in=Project.objects.filter(
-                Q(owner=user) | Q(members=user)
-            )
-        ).distinct()
+        project_id = self.kwargs.get('project_pk')
+        if not project_id:
+            return Sprint.objects.none()
+        
+        project = get_object_or_404(Project, id=project_id)
+        
+        # Verifica se o usuário é membro do projeto
+        if ProjectMembership.objects.filter(user=self.request.user, project=project).exists():
+            return Sprint.objects.filter(project=project).order_by('-created_at')
+        
+        return Sprint.objects.none()
+
+    def get_serializer_context(self):
+        """
+        Adiciona o project_id ao contexto do serializer.
+        """
+        context = super().get_serializer_context()
+        context['project_id'] = self.kwargs.get('project_pk')
+        return context
 
     def perform_create(self, serializer):
         """
         Cria uma nova sprint apenas se o usuário for Scrum Master (SM) do projeto.
         """
-        project = serializer.validated_data.get("project")
+        project_id = self.kwargs.get('project_pk')
+        project = get_object_or_404(Project, id=project_id)
+        
         membership = ProjectMembership.objects.filter(
             user=self.request.user,
             project=project,
@@ -252,7 +267,7 @@ class SprintViewSet(viewsets.ModelViewSet):
         if not membership:
             raise PermissionDenied("Apenas o Scrum Master pode criar sprints neste projeto.")
 
-        serializer.save()
+        serializer.save(project=project, created_by=self.request.user)
 
     @action(detail=True, methods=["post"], url_path="add-items")
     def add_items(self, request, pk=None):

@@ -173,13 +173,15 @@ class ProductBacklogItemSerializer(serializers.ModelSerializer):
         return instance
 
 class SprintSerializer(serializers.ModelSerializer):
+    project = serializers.PrimaryKeyRelatedField(read_only=True)  # Virá da URL, não do body
+    
     class Meta:
         model = Sprint
         fields = [
             'id', 'project', 'name',
             'start_date', 'end_date', 'created_at'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'project', 'created_at']
 
     def validate(self, data):
         #validacao data de inicio e fim
@@ -189,6 +191,20 @@ class SprintSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'end_date': 'A data de término deve ser posterior à data de início.'
             })
+        
+        # Valida se não existe outra sprint com o mesmo nome no projeto
+        project_id = self.context.get('project_id')
+        if project_id:
+            name = data.get('name')
+            query = Sprint.objects.filter(project_id=project_id, name=name)
+            # Se estiver atualizando, exclui a própria sprint da verificação
+            if self.instance:
+                query = query.exclude(id=self.instance.id)
+            if query.exists():
+                raise serializers.ValidationError({
+                    'name': 'Já existe uma sprint com este nome neste projeto.'
+                })
+        
         return data
 
 
