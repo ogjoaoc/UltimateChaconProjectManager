@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
-from .models import Project, ProjectMembership, UserStory, ProductBacklogItem
+from .models import Project, ProjectMembership, UserStory, ProductBacklogItem, Sprint
 
 User = get_user_model()
 
@@ -126,14 +126,17 @@ class ProductBacklogItemSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True)
     user_story = UserStorySerializer(read_only=True)
     user_story_id = serializers.IntegerField(write_only=True)
+    sprint = serializers.PrimaryKeyRelatedField(read_only=True)
+    sprint_id = serializers.PrimaryKeyRelatedField(queryset=Sprint.objects.all(), write_only=True, required=False, allow_null=True) 
 
     class Meta:
         model = ProductBacklogItem
-        fields = ["id", "title", "description", "priority", "created_at", "created_by", "user_story", "user_story_id"]
+        fields = ["id", "title", "description", "priority", "created_at", "created_by", "user_story", "user_story_id", "sprint", "sprint_id"]
 
     def validate(self, data):
         request = self.context.get('request')
         project = self.context.get('project')
+        
         
         if not project:
             raise ValidationError("Projeto não especificado")
@@ -145,9 +148,66 @@ class ProductBacklogItemSerializer(serializers.ModelSerializer):
         user_story = UserStory.objects.filter(id=data['user_story_id'], project=project).first()
         if not user_story:
             raise ValidationError("História de usuário não encontrada neste projeto")
+        
+        sprint = data.get('sprint_id', None)
+        if sprint and sprint.project != project:
+            raise ValidationError("Sprint does not belong to this project")
+        
+        return super().validate(data)
 
+        #return data
+    
+    def create(self, validated_data):
+        sprint = validated_data.pop('sprint_id', None)
+        item = super().create(validated_data)
+        if sprint:
+            item.sprint = sprint
+            item.save()
+        return item
+    
+    def update(self, instance, validated_data):
+        sprint = validated_data.pop('sprint_id', None)
+        instance = super().update(instance, validated_data)
+        if 'sprint_id' in self.initial_data:
+            # se sprint_id enviado explicitamente, atualiza (pode ser null)
+            instance.sprint = sprint
+            instance.save()
+        return instance
+
+class SprintSerializer(serializers.ModelSerializer):
+    project = serializers.PrimaryKeyRelatedField(read_only=True)  # Virá da URL, não do body
+    
+    class Meta:
+        model = Sprint
+        fields = [
+            'id', 'project', 'name',
+            'start_date', 'end_date', 'created_at'
+        ]
+        read_only_fields = ['id', 'project', 'created_at']
+
+    def validate(self, data):
+        #validacao data de inicio e fim
+        start = data.get('start_date')
+        end = data.get('end_date')
+        if start and end and start > end:
+            raise serializers.ValidationError({
+                'end_date': 'A data de término deve ser posterior à data de início.'
+            })
+        
+        # Valida se não existe outra sprint com o mesmo nome no projeto
+        project_id = self.context.get('project_id')
+        if project_id:
+            name = data.get('name')
+            query = Sprint.objects.filter(project_id=project_id, name=name)
+            # Se estiver atualizando, exclui a própria sprint da verificação
+            if self.instance:
+                query = query.exclude(id=self.instance.id)
+            if query.exists():
+                raise serializers.ValidationError({
+                    'name': 'Já existe uma sprint com este nome neste projeto.'
+                })
+        
         return data
-
 
 
 '''

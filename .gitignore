@@ -23,4 +23,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-backend\api\__pycache__
+
+# Bytecode compilado do python (é especifico para cada usuário)
+__pycache__/

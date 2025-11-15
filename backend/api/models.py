@@ -54,6 +54,22 @@ class UserStory(models.Model):
     def __str__(self):
         return self.title
 
+
+class Sprint(models.Model):
+    # adicionar status?
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="sprints")
+    name = models.CharField(max_length=100)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        unique_together = ('project', 'name')
+        
+    def __str__(self):
+        return f"{self.name} ({self.project.name})"
+
 class ProductBacklogItem(models.Model):
     PRIORITY_CHOICES = [
         ('HIGH', 'Alta'),
@@ -63,6 +79,8 @@ class ProductBacklogItem(models.Model):
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="project_backlog")
     user_story = models.ForeignKey(UserStory, on_delete=models.CASCADE, related_name="backlog_items")
+    sprint = models.ForeignKey(Sprint, on_delete=models.SET_NULL, null=True, blank=True, related_name="sprint_backlog")
+    #a qual sprint esse item pertence, pode ser nulo, éh definido somente quando for escolhido para um sprint backlog
     title = models.CharField(max_length=200)
     description = models.TextField()
     priority = models.CharField(max_length=6, choices=PRIORITY_CHOICES, default='MEDIUM')
@@ -71,7 +89,6 @@ class ProductBacklogItem(models.Model):
 
     def __str__(self):
         return self.title
-
 
 '''
 Aqui é bem importante, os models são só classes do python, que depois são 

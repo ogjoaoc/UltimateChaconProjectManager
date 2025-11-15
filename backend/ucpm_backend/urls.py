@@ -5,16 +5,19 @@ from rest_framework_nested import routers as nested_routers
 from api.views import (
     ProjectViewSet, AddMemberView, register_view, me_view,
     UserStoryViewSet, ProductBacklogItemViewSet,
-    RemoveMemberView
+    RemoveMemberView, SprintViewSet
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = routers.DefaultRouter()
 router.register(r'projects', ProjectViewSet, basename='projects')
 
+
 projects_router = nested_routers.NestedDefaultRouter(router, r'projects', lookup='project')
 projects_router.register(r'user-stories', UserStoryViewSet, basename='project-user-stories')
 projects_router.register(r'backlog', ProductBacklogItemViewSet, basename='project-backlog')
+projects_router.register(r'sprints', SprintViewSet, basename='project-sprints')
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
