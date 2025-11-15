@@ -29,7 +29,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         ProjectMembership.objects.create(
             user=self.request.user,
             project=project,
-            role='PO'
+            role='SM'
         )
 
 class UserStoryViewSet(viewsets.ModelViewSet):
@@ -114,16 +114,16 @@ class AddMemberView(APIView):
     def post(self, request, project_id):
         project = get_object_or_404(Project, id=project_id)
 
-        
-        is_po = ProjectMembership.objects.filter(
+        # Agora somente o Scrum Master (SM) pode adicionar membros
+        is_sm = ProjectMembership.objects.filter(
             user=request.user,
             project=project,
-            role='PO'
+            role='SM'
         ).exists()
 
-        if not is_po:
+        if not is_sm:
             return Response(
-                {"detail": "Apenas o Product Owner pode adicionar membros"},
+                {"detail": "Apenas o Scrum Master pode adicionar membros"},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -170,11 +170,16 @@ class RemoveMemberView(APIView):
     def post(self, request, project_id):
         # 1. Encontra o projeto
         project = get_object_or_404(Project, id=project_id)
+        # 2. Verifica se o usuário que faz a requisição é Scrum Master (SM)
+        is_sm = ProjectMembership.objects.filter(
+            user=request.user,
+            project=project,
+            role='SM'
+        ).exists()
 
-        # 2. Verifica se o usuário que faz a requisição é o Dono (PO)
-        if request.user != project.owner:
+        if not is_sm:
             return Response(
-                {"detail": "Apenas o Product Owner pode remover membros."},
+                {"detail": "Apenas o Scrum Master pode remover membros."},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -186,10 +191,16 @@ class RemoveMemberView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 4. Verifica se o PO não está tentando se remover
-        if request.user.id == user_id_to_remove:
+        # 4. Impede a remoção do owner do projeto (dono real)
+        # 4. Impede a remoção do owner do projeto (dono real)
+        try:
+            target_id_int = int(user_id_to_remove)
+        except (TypeError, ValueError):
+            return Response({"detail": "'user_id' inválido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if project.owner and project.owner.id == target_id_int:
             return Response(
-                {"detail": "O Product Owner não pode se remover do projeto."},
+                {"detail": "O owner do projeto não pode ser removido."},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
