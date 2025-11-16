@@ -120,44 +120,55 @@ export default function UserStoriesTab({ projectId, userRole }: Props) {
         <Button onClick={openCreateDialog}>Nova História de Usuário</Button>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {stories.map((story) => (
-          <Card key={story.id}>
-            <CardHeader>
-              <CardTitle>{story.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm">{story.description}</p>
-                {story.acceptance_criteria && (
-                  <div>
-                    <h4 className="font-semibold text-sm">Critérios de Aceitação:</h4>
-                    <p className="text-sm">{story.acceptance_criteria}</p>
-                  </div>
-                )}
-                {userRole === "PO" && (
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openEditDialog(story)}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDelete(story.id)}
-                    >
-                      Excluir
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {!loading && stories.length === 0 ? (
+        <div className="text-center text-muted-foreground py-10 border-2 border-dashed rounded-lg">
+          <h3 className="text-lg font-semibold">Nenhuma História de Usuário Encontrada</h3>
+          {userRole === "PO" ? (
+            <p>Você ainda não criou nenhuma história. Que tal criar a primeira?</p>
+          ) : (
+            <p>Ainda não há histórias de usuário. Peça para que o Product Owner crie algumas.</p>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {stories.map((story) => (
+            <Card key={story.id}>
+              <CardHeader>
+                <CardTitle>{story.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <p className="text-sm">{story.description}</p>
+                  {story.acceptance_criteria && (
+                    <div>
+                      <h4 className="font-semibold text-sm">Critérios de Aceitação:</h4>
+                      <p className="text-sm">{story.acceptance_criteria}</p>
+                    </div>
+                  )}
+                  {userRole === "PO" && (
+                    <div className="flex gap-2 mt-4">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEditDialog(story)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(story.id)}
+                      >
+                        Excluir
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>

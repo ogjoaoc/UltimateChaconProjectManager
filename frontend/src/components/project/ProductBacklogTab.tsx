@@ -137,51 +137,62 @@ export default function ProductBacklogTab({ projectId, userRole }: Props) {
         <Button onClick={openCreateDialog}>Novo Item de Backlog</Button>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((item) => (
-          <Card key={item.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{item.title}</CardTitle>
-                <span className={`text-sm px-2 py-1 rounded ${
-                  item.priority === "HIGH" ? "bg-red-100 text-red-800" :
-                  item.priority === "MEDIUM" ? "bg-yellow-100 text-yellow-800" :
-                  "bg-green-100 text-green-800"
-                }`}>
-                  {item.priority === "HIGH" ? "Alta" :
-                   item.priority === "MEDIUM" ? "Média" : "Baixa"}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm">{item.description}</p>
-                <div className="text-sm text-muted-foreground">
-                  <strong>História:</strong> {item.user_story.title}
+      {!loading && items.length === 0 ? (
+        <div className="text-center text-muted-foreground py-10 border-2 border-dashed rounded-lg">
+          <h3 className="text-lg font-semibold">Nenhum Item no Backlog</h3>
+          {userRole === "PO" ? (
+            <p>Você ainda não criou nenhum item. Que tal criar o primeiro?</p>
+          ) : (
+            <p>Ainda não há itens no backlog. Peça para que o Product Owner crie alguns.</p>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((item) => (
+            <Card key={item.id}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg">{item.title}</CardTitle>
+                  <span className={`text-sm px-2 py-1 rounded ${
+                    item.priority === "HIGH" ? "bg-red-100 text-red-800" :
+                    item.priority === "MEDIUM" ? "bg-yellow-100 text-yellow-800" :
+                    "bg-green-100 text-green-800"
+                  }`}>
+                    {item.priority === "HIGH" ? "Alta" :
+                     item.priority === "MEDIUM" ? "Média" : "Baixa"}
+                  </span>
                 </div>
-                {userRole === 'PO'  && (
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openEditDialog(item)}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDelete(item.id)}
-                    >
-                      Excluir
-                    </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <p className="text-sm">{item.description}</p>
+                  <div className="text-sm text-muted-foreground">
+                    <strong>História:</strong> {item.user_story.title}
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  {userRole === 'PO'  && (
+                    <div className="flex gap-2 mt-4">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEditDialog(item)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(item.id)}
+                      >
+                        Excluir
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
