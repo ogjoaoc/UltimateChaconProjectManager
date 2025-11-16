@@ -1,15 +1,108 @@
 // src/api/client.ts
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-function getToken() { return localStorage.getItem("access_token"); }
-function getRefreshToken() { return localStorage.getItem("refresh_token"); }
-export function setTokens(access: string, refresh: string) {
-  localStorage.setItem("access_token", access);
-  localStorage.setItem("refresh_token", refresh);
+const ACCESS_TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
+const TAB_SCOPE_SESSION_KEY = "ucpm_tab_scope_v1";
+
+const hasWindow = typeof window !== "undefined";
+
+function safeGetLocalStorage(): Storage | null {
+  if (!hasWindow) return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }
+
+function safeGetSessionStorage(): Storage | null {
+  if (!hasWindow) return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function randomScopeId() {
+  if (!hasWindow) return null;
+  const crypto = window.crypto;
+  if (crypto?.randomUUID) return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getTabScopeId() {
+  const sessionStorage = safeGetSessionStorage();
+  if (!sessionStorage) return null;
+  let scope = sessionStorage.getItem(TAB_SCOPE_SESSION_KEY);
+  if (!scope) {
+    scope = randomScopeId();
+    if (scope) sessionStorage.setItem(TAB_SCOPE_SESSION_KEY, scope);
+  }
+  return scope;
+}
+
+function getScopedKey(baseKey: string) {
+  const scope = getTabScopeId();
+  return scope ? `${baseKey}:${scope}` : baseKey;
+}
+
+function migrateLegacyToken(baseKey: string) {
+  const storage = safeGetLocalStorage();
+  if (!storage) return;
+  const scopedKey = getScopedKey(baseKey);
+  if (scopedKey === baseKey) return; // sem escopo, nada para migrar
+  if (storage.getItem(scopedKey)) return;
+  const legacyValue = storage.getItem(baseKey);
+  if (legacyValue) {
+    storage.setItem(scopedKey, legacyValue);
+    storage.removeItem(baseKey);
+  }
+}
+
+function getToken() {
+  const storage = safeGetLocalStorage();
+  if (!storage) return null;
+  migrateLegacyToken(ACCESS_TOKEN_KEY);
+  return storage.getItem(getScopedKey(ACCESS_TOKEN_KEY));
+}
+
+function getRefreshToken() {
+  const storage = safeGetLocalStorage();
+  if (!storage) return null;
+  migrateLegacyToken(REFRESH_TOKEN_KEY);
+  return storage.getItem(getScopedKey(REFRESH_TOKEN_KEY));
+}
+
+function setAccessToken(access: string) {
+  const storage = safeGetLocalStorage();
+  if (!storage) return;
+  storage.setItem(getScopedKey(ACCESS_TOKEN_KEY), access);
+}
+
+function setRefreshToken(refresh: string) {
+  const storage = safeGetLocalStorage();
+  if (!storage) return;
+  storage.setItem(getScopedKey(REFRESH_TOKEN_KEY), refresh);
+}
+
+export function setTokens(access: string, refresh: string) {
+  setAccessToken(access);
+  if (refresh) {
+    setRefreshToken(refresh);
+  }
+}
+
 export function clearTokens() {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
+  const storage = safeGetLocalStorage();
+  if (!storage) return;
+  [
+    getScopedKey(ACCESS_TOKEN_KEY),
+    getScopedKey(REFRESH_TOKEN_KEY),
+    ACCESS_TOKEN_KEY,
+    REFRESH_TOKEN_KEY,
+  ].forEach((key) => storage.removeItem(key));
 }
 
 // --- Lógica de Token Refresh ---
@@ -70,8 +163,8 @@ export async function apiFetch(path: string, opts: RequestInit = {}) {
         throw new Error("Não foi possível renovar a sessão.");
       }
 
-      const { access: newAccessToken } = await refreshRes.json();
-      localStorage.setItem('access_token', newAccessToken);
+  const { access: newAccessToken } = await refreshRes.json();
+  setAccessToken(newAccessToken);
       headers['Authorization'] = `Bearer ${newAccessToken}`;
       
       processQueue(null, newAccessToken);
