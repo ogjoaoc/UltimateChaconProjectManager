@@ -56,6 +56,11 @@ const ProjectPage = () => {
   if (loading) return <div>Carregando...</div>;
   if (!project || !currentUser) return null;
 
+  const currentUserMembership = project.members?.find(
+    (m) => m.id === currentUser.id
+  );
+  const userRole = currentUserMembership?.role || "";
+
   // Apenas Scrum Master (role 'SM') tem permissão de gerenciar o projeto
   // (não consideramos mais somente o owner)
   const canManageProject = project.members?.some(
@@ -94,11 +99,11 @@ const ProjectPage = () => {
         </TabsList>
 
         <TabsContent value="user-stories">
-          <UserStoriesTab projectId={project.id} canManageProject={true} /> 
+          <UserStoriesTab projectId={project.id} userRole={userRole} />
         </TabsContent>
 
         <TabsContent value="product-backlog">
-          <ProductBacklogTab projectId={project.id} canManageProject={true} />
+          <ProductBacklogTab projectId={project.id} userRole={userRole} />
         </TabsContent>
 
         <TabsContent value="sprints">
