@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Case, When, IntegerField
+from django.utils import timezone
 from .models import Project, ProjectMembership, UserStory, ProductBacklogItem, Sprint, Task
 from .serializers import (
     ProjectSerializer, RegisterSerializer, UserSerializer,
@@ -34,6 +35,29 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project=project,
             defaults={'role': 'SM'}
         )
+
+    @action(detail=True, methods=["post"], url_path="close")
+    def close_project(self, request, pk=None):
+        project = self.get_object()
+
+        if project.owner != request.user:
+            return Response(
+                {"detail": "Somente o criador do projeto pode encerrá-lo."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if project.status == Project.Status.CONCLUDED:
+            return Response(
+                {"detail": "Este projeto já foi encerrado."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        project.status = Project.Status.CONCLUDED
+        project.concluded_at = timezone.now()
+        project.save(update_fields=["status", "concluded_at"])
+
+        serializer = self.get_serializer(project)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class UserStoryViewSet(viewsets.ModelViewSet):
     serializer_class = UserStorySerializer
@@ -117,6 +141,12 @@ class AddMemberView(APIView):
     def post(self, request, project_id):
         project = get_object_or_404(Project, id=project_id)
 
+        if project.status == Project.Status.CONCLUDED:
+            return Response(
+                {"detail": "Projetos encerrados não aceitam novas alterações de membros."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Agora somente o Scrum Master (SM) pode adicionar membros
         is_sm = ProjectMembership.objects.filter(
             user=request.user,
@@ -174,6 +204,12 @@ class RemoveMemberView(APIView):
     def post(self, request, project_id):
         # 1. Encontra o projeto
         project = get_object_or_404(Project, id=project_id)
+
+        if project.status == Project.Status.CONCLUDED:
+            return Response(
+                {"detail": "Projetos encerrados não permitem remover membros."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         # 2. Verifica se o usuário que faz a requisição é Scrum Master (SM)
         is_sm = ProjectMembership.objects.filter(
             user=request.user,

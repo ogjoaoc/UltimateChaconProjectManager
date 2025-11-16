@@ -60,7 +60,8 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ["id", "name", "description", "owner", "members"]
+        fields = ["id", "name", "description", "owner", "members", "status", "concluded_at", "created_at"]
+        read_only_fields = ["owner", "members", "status", "concluded_at", "created_at"]
 
     def get_members(self, obj):
         memberships = ProjectMembership.objects.filter(project=obj)

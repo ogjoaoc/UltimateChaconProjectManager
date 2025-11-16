@@ -12,6 +12,10 @@ class User(AbstractUser):
 # um usuário pode ter vários projetos, e cada projeto pode ter vários usuários com papéis diferentes
 # ManyToManyFiled
 class Project(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = 'ACTIVE', 'Ativo'
+        CONCLUDED = 'CONCLUDED', 'Concluído'
+
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     owner = models.ForeignKey(
@@ -21,6 +25,8 @@ class Project(models.Model):
         'User', through='ProjectMembership', related_name="projects"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.ACTIVE)
+    concluded_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.name
