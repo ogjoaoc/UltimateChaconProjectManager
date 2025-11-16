@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { apiFetch, clearTokens } from "@/api/client";
 import { LogOut, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import UserStoriesTab from "@/components/project/UserStoriesTab";
@@ -24,6 +25,8 @@ type Project = {
   description?: string;
   owner: User;
   members: (User & { role: string })[];
+  status: "ACTIVE" | "CONCLUDED";
+  concluded_at?: string | null;
 };
 
 const ProjectPage = () => {
@@ -60,21 +63,34 @@ const ProjectPage = () => {
     (m) => m.id === currentUser.id
   );
   const userRole = currentUserMembership?.role || "";
+  const isProjectConcluded = project.status === "CONCLUDED";
 
   // Apenas Scrum Master (role 'SM') tem permissão de gerenciar o projeto
   // (não consideramos mais somente o owner)
   const canManageProject = project.members?.some(
     (m) => m.id === currentUser.id && m.role === "SM"
-  );
+  ) && !isProjectConcluded;
 
   return (
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
       <header className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{project.name}</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-bold">{project.name}</h1>
+            {isProjectConcluded && (
+              <Badge variant="outline" className="uppercase tracking-wide text-xs">
+                Projeto Concluído
+              </Badge>
+            )}
+          </div>
           {project.description && (
             <p className="text-muted-foreground mt-2">{project.description}</p>
+          )}
+          {isProjectConcluded && project.concluded_at && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Concluído em {new Date(project.concluded_at).toLocaleDateString("pt-BR")}
+            </p>
           )}
         </div>
 

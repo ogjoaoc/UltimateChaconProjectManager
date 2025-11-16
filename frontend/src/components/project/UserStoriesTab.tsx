@@ -10,6 +10,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 type UserStory = {
@@ -35,6 +45,8 @@ export default function UserStoriesTab({ projectId, userRole }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [acceptanceCriteria, setAcceptanceCriteria] = useState("");
+  const [storyToDelete, setStoryToDelete] = useState<UserStory | null>(null);
+  const [isDeletingStory, setIsDeletingStory] = useState(false);
 
   useEffect(() => {
     fetchStories();
@@ -99,16 +111,20 @@ export default function UserStoriesTab({ projectId, userRole }: Props) {
     }
   }
 
-  async function handleDelete(storyId: number) {
-    if (!confirm("Tem certeza que deseja excluir esta história?")) return;
+  async function handleDelete() {
+    if (!storyToDelete) return;
+    setIsDeletingStory(true);
     try {
-      await apiFetch(`/api/projects/${projectId}/user-stories/${storyId}/`, {
+      await apiFetch(`/api/projects/${projectId}/user-stories/${storyToDelete.id}/`, {
         method: "DELETE",
       });
-      toast.success("História excluída com sucesso");
+      toast.success(`História "${storyToDelete.title}" excluída com sucesso`);
+      setStoryToDelete(null);
       fetchStories();
     } catch (err: any) {
       toast.error(err.detail || "Erro ao excluir história");
+    } finally {
+      setIsDeletingStory(false);
     }
   }
 
@@ -157,7 +173,7 @@ export default function UserStoriesTab({ projectId, userRole }: Props) {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => handleDelete(story.id)}
+                        onClick={() => setStoryToDelete(story)}
                       >
                         Excluir
                       </Button>
@@ -217,6 +233,33 @@ export default function UserStoriesTab({ projectId, userRole }: Props) {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!storyToDelete}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingStory) setStoryToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir história de usuário</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir "{storyToDelete?.title}"? Backlog e históricos ligados à história poderão
+              ser impactados e esta ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingStory}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeletingStory}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingStory ? "Excluindo..." : "Excluir História"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

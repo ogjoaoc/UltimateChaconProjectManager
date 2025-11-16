@@ -10,6 +10,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 type UserStory = {
@@ -44,6 +54,8 @@ export default function ProductBacklogTab({ projectId, userRole }: Props) {
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<"HIGH" | "MEDIUM" | "LOW">("MEDIUM");
   const [selectedStoryId, setSelectedStoryId] = useState<number | "">("");
+  const [itemToDelete, setItemToDelete] = useState<BacklogItem | null>(null);
+  const [isDeletingItem, setIsDeletingItem] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -116,16 +128,20 @@ export default function ProductBacklogTab({ projectId, userRole }: Props) {
     }
   }
 
-  async function handleDelete(itemId: number) {
-    if (!confirm("Tem certeza que deseja excluir este item?")) return;
+  async function handleDelete() {
+    if (!itemToDelete) return;
+    setIsDeletingItem(true);
     try {
-      await apiFetch(`/api/projects/${projectId}/backlog/${itemId}/`, {
+      await apiFetch(`/api/projects/${projectId}/backlog/${itemToDelete.id}/`, {
         method: "DELETE",
       });
-      toast.success("Item excluído com sucesso");
+      toast.success(`Item "${itemToDelete.title}" excluído com sucesso`);
+      setItemToDelete(null);
       fetchData();
     } catch (err: any) {
       toast.error(err.message || "Erro ao excluir item");
+    } finally {
+      setIsDeletingItem(false);
     }
   }
 
@@ -181,7 +197,7 @@ export default function ProductBacklogTab({ projectId, userRole }: Props) {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => handleDelete(item.id)}
+                        onClick={() => setItemToDelete(item)}
                       >
                         Excluir
                       </Button>
@@ -259,6 +275,33 @@ export default function ProductBacklogTab({ projectId, userRole }: Props) {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!itemToDelete}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingItem) setItemToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir item do backlog</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir "{itemToDelete?.title}"? Essa ação não poderá ser desfeita e removerá a
+              associação com a história "{itemToDelete?.user_story.title}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingItem}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeletingItem}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingItem ? "Excluindo..." : "Excluir Item"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

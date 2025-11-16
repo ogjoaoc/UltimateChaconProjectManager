@@ -20,6 +20,8 @@ type Project = {
   name: string;
   owner: User;
   members: User[];
+  status: "ACTIVE" | "CONCLUDED";
+  concluded_at?: string | null;
 };
 
 const InviteMembers = () => {
@@ -45,6 +47,12 @@ const InviteMembers = () => {
         ]);
         setProject(proj);
         setCurrentUser(me);
+
+        if (proj.status === "CONCLUDED") {
+          toast.error("Este projeto já foi encerrado. Convites estão desabilitados.");
+          navigate("/dashboard");
+          return;
+        }
 
         // Redireciona se não for Scrum Master (SM)
         const isSM = proj.members?.some((m: any) => m.id === me.id && m.role === 'SM');
