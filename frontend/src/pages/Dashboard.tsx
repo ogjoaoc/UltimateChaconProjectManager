@@ -184,9 +184,6 @@ const Dashboard = () => {
       <header className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Bem-vindo, {user?.username || "..."}! 👋</h1>
-          <p className="text-muted-foreground">
-            {user ? `${user.is_superuser ? "ADMIN" : user.role || "Sem role"} - ${user.bio || ""}` : "Carregando..."}
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={() => setIsProfileModalOpen(true)} title="Perfil">
