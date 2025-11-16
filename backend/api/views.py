@@ -8,10 +8,10 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Case, When, IntegerField
-from .models import Project, ProjectMembership, UserStory, ProductBacklogItem, Sprint
+from .models import Project, ProjectMembership, UserStory, ProductBacklogItem, Sprint, Task
 from .serializers import (
     ProjectSerializer, RegisterSerializer, UserSerializer,
-    UserStorySerializer, ProductBacklogItemSerializer, SprintSerializer
+    UserStorySerializer, ProductBacklogItemSerializer, SprintSerializer, TaskSerializer
 )
 
 User = get_user_model()
@@ -426,6 +426,89 @@ class SprintViewSet(viewsets.ModelViewSet):
         )
 
 
+class TaskViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet responsável por gerenciar Tasks (Tarefas) dentro de uma Sprint.
+    Apenas desenvolvedores (DEV) podem criar tarefas.
+    """
+    serializer_class = TaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Retorna apenas as tarefas da sprint específica.
+        """
+        sprint_id = self.kwargs.get('sprint_pk')
+        if not sprint_id:
+            return Task.objects.none()
+        
+        sprint = get_object_or_404(Sprint, id=sprint_id)
+        project = sprint.project
+        
+        # Verifica se o usuário é membro do projeto
+        if ProjectMembership.objects.filter(user=self.request.user, project=project).exists():
+            return Task.objects.filter(sprint=sprint).order_by('-created_at')
+        
+        return Task.objects.none()
+
+    def get_serializer_context(self):
+        """
+        Adiciona o sprint_id ao contexto do serializer.
+        """
+        context = super().get_serializer_context()
+        context['sprint_id'] = self.kwargs.get('sprint_pk')
+        context['request'] = self.request
+        return context
+
+    def perform_create(self, serializer):
+        """
+        Cria uma nova tarefa apenas se o usuário for um Desenvolvedor (DEV).
+        """
+        sprint_id = self.kwargs.get('sprint_pk')
+        sprint = get_object_or_404(Sprint, id=sprint_id)
+        project = sprint.project
+        
+        # Verifica se o usuário é desenvolvedor do projeto
+        membership = ProjectMembership.objects.filter(
+            user=self.request.user,
+            project=project,
+            role='DEV'
+        ).first()
+
+        if not membership:
+            raise PermissionDenied("Apenas desenvolvedores podem criar tarefas.")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        """
+        Permite que qualquer membro do projeto edite a tarefa.
+        """
+        task = self.get_object()
+        project = task.sprint.project
+        
+        if not ProjectMembership.objects.filter(user=self.request.user, project=project).exists():
+            raise PermissionDenied("Você não é membro deste projeto.")
+        
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """
+        Permite que apenas desenvolvedores excluam tarefas.
+        """
+        project = instance.sprint.project
+        membership = ProjectMembership.objects.filter(
+            user=self.request.user,
+            project=project,
+            role='DEV'
+        ).first()
+
+        if not membership:
+            raise PermissionDenied("Apenas desenvolvedores podem excluir tarefas.")
+        
+        instance.delete()
+
+
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def register_view(request):
@@ -469,5 +552,7 @@ def me_view(request):
         
         # Se os dados forem inválidos, retorna os erros
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 

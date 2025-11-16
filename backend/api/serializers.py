@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
-from .models import Project, ProjectMembership, UserStory, ProductBacklogItem, Sprint
+from .models import Project, ProjectMembership, UserStory, ProductBacklogItem, Sprint, Task
 
 User = get_user_model()
 
@@ -214,6 +214,95 @@ class SprintSerializer(serializers.ModelSerializer):
                 data[f] = str(data[f]).strip()
         
         return data
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+    assigned_to = UserSerializer(read_only=True)
+    assigned_to_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    backlog_item_id = serializers.IntegerField(write_only=True)
+    backlog_item = ProductBacklogItemSerializer(read_only=True)
+    
+    class Meta:
+        model = Task
+        fields = [
+            'id', 'sprint', 'backlog_item', 'backlog_item_id', 'description',
+            'assigned_to', 'assigned_to_id', 'status', 'created_at', 'created_by'
+        ]
+        read_only_fields = ['id', 'sprint', 'created_at', 'created_by']
+
+    def validate(self, data):
+        request = self.context.get('request')
+        sprint_id = self.context.get('sprint_id')
+        
+        if not sprint_id:
+            raise ValidationError("Sprint não especificada")
+        
+        # Verifica se o backlog item existe e pertence ao mesmo projeto da sprint
+        backlog_item_id = data.get('backlog_item_id')
+        if backlog_item_id:
+            try:
+                sprint = Sprint.objects.get(id=sprint_id)
+                backlog_item = ProductBacklogItem.objects.get(id=backlog_item_id)
+                
+                # Verifica se o item do backlog pertence ao mesmo projeto da sprint
+                if backlog_item.project.id != sprint.project.id:
+                    raise ValidationError("O item do backlog deve pertencer ao mesmo projeto da sprint")
+            except ProductBacklogItem.DoesNotExist:
+                raise ValidationError("Item do backlog não encontrado")
+            except Sprint.DoesNotExist:
+                raise ValidationError("Sprint não encontrada")
+        
+        # Verifica se o assigned_to é membro do projeto (se fornecido)
+        assigned_to_id = data.get('assigned_to_id')
+        if assigned_to_id:
+            try:
+                user = User.objects.get(id=assigned_to_id)
+                backlog_item = ProductBacklogItem.objects.get(id=backlog_item_id)
+                project = backlog_item.project
+                
+                if not ProjectMembership.objects.filter(user=user, project=project).exists():
+                    raise ValidationError("O usuário atribuído deve ser membro do projeto")
+            except User.DoesNotExist:
+                raise ValidationError("Usuário não encontrado")
+        
+        return data
+
+    def create(self, validated_data):
+        sprint_id = self.context.get('sprint_id')
+        sprint = Sprint.objects.get(id=sprint_id)
+        
+        assigned_to_id = validated_data.pop('assigned_to_id', None)
+        assigned_to = None
+        if assigned_to_id:
+            assigned_to = User.objects.get(id=assigned_to_id)
+        
+        backlog_item_id = validated_data.pop('backlog_item_id')
+        backlog_item = ProductBacklogItem.objects.get(id=backlog_item_id)
+        
+        task = Task.objects.create(
+            sprint=sprint,
+            backlog_item=backlog_item,
+            assigned_to=assigned_to,
+            created_by=self.context.get('request').user,
+            **validated_data
+        )
+        return task
+
+    def update(self, instance, validated_data):
+        assigned_to_id = validated_data.pop('assigned_to_id', None)
+        if assigned_to_id is not None:
+            instance.assigned_to = User.objects.get(id=assigned_to_id) if assigned_to_id else None
+        
+        backlog_item_id = validated_data.pop('backlog_item_id', None)
+        if backlog_item_id:
+            instance.backlog_item = ProductBacklogItem.objects.get(id=backlog_item_id)
+        
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        instance.save()
+        return instance
 
 
 '''

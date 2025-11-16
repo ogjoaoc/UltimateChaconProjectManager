@@ -100,6 +100,25 @@ class ProductBacklogItem(models.Model):
     def __str__(self):
         return self.title
 
+
+class Task(models.Model):
+    STATUS_CHOICES = [
+        ('TODO', 'A fazer'),
+        ('IN_PROGRESS', 'Em Andamento'),
+        ('DONE', 'Concluído'),
+    ]
+
+    sprint = models.ForeignKey(Sprint, on_delete=models.CASCADE, related_name="tasks")
+    backlog_item = models.ForeignKey(ProductBacklogItem, on_delete=models.CASCADE, related_name="tasks")
+    description = models.TextField()
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_tasks")
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='TODO')
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="created_tasks")
+
+    def __str__(self):
+        return f"Task: {self.description[:50]} - {self.get_status_display()}"
+
 '''
 Aqui é bem importante, os models são só classes do python, que depois são 
 passados pra tabela no banco de dados. Cada atributo da classe vira uma coluna, e cada 
