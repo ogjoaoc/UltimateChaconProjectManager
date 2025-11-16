@@ -300,17 +300,20 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
             <Eye className="h-4 w-4 mr-1" />
             Visualizar
           </Button>
-          
-          {status === "planned" && canManageProject && (
+
+          {canManageProject && (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openEditModal(sprint)}
-              >
-                <Pencil className="h-4 w-4 mr-1" />
-                Editar
-              </Button>
+              {status === "planned" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openEditModal(sprint)}
+                >
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Editar
+                </Button>
+              )}
+
               <Button
                 variant="destructive"
                 size="sm"
@@ -342,10 +345,14 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
           <h2 className="text-2xl font-bold">Sprints</h2>
           <p className="text-muted-foreground">Gerencie as sprints do projeto</p>
         </div>
-        <Button onClick={openCreateModal}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Sprint
-        </Button>
+        {canManageProject ? (
+          <Button onClick={openCreateModal}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Sprint
+          </Button>
+        ) : (
+          <div></div>
+        )}
       </div>
 
       {/* Sprint Ativa */}
@@ -525,7 +532,7 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
           <DialogHeader>
             <DialogTitle>Editar Sprint</DialogTitle>
             <DialogDescription>
-              Edite as informações da sprint (somente Scrum Master)
+              Edite as informações da sprint
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -702,8 +709,21 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
               </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="flex gap-2">
             <Button onClick={() => setIsViewModalOpen(false)}>Fechar</Button>
+            {canManageProject && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // fechar a visualização e abrir modal de edição
+                  setIsViewModalOpen(false);
+                  if (selectedSprint) openEditModal(selectedSprint);
+                }}
+              >
+                <Pencil className="h-4 w-4 mr-1" />
+                Editar
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
