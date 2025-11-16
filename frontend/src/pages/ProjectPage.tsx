@@ -106,7 +106,11 @@ const ProjectPage = () => {
         </TabsContent>
 
         <TabsContent value="sprint-plan">
-          <SprintPlanTab projectId={project.id} canManageProject={canManageProject} />
+          <SprintPlanTab 
+            projectId={project.id} 
+            canManageProject={canManageProject}
+            onNavigateToSprints={() => setActiveTab("sprints")}
+          />
         </TabsContent>
 
         <TabsContent value="members">

@@ -19,6 +19,7 @@ type Sprint = {
   start_date: string;
   end_date: string;
   created_at: string;
+  status?: string;
   objective?: string;
   tech?: string;
   team?: string;
@@ -249,6 +250,12 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
     const planned: Sprint[] = [];
 
     sprints.forEach((sprint) => {
+      // Se tem status COMPLETED, vai para concluídas independente da data
+      if (sprint.status === 'COMPLETED') {
+        completed.push(sprint);
+        return;
+      }
+
       const startDate = new Date(sprint.start_date);
       const endDate = new Date(sprint.end_date);
       startDate.setHours(0, 0, 0, 0);

@@ -56,11 +56,17 @@ class UserStory(models.Model):
 
 
 class Sprint(models.Model):
-    # adicionar status?
+    STATUS_CHOICES = [
+        ('PLANNED', 'Planejada'),
+        ('ACTIVE', 'Ativa'),
+        ('COMPLETED', 'Concluída'),
+    ]
+    
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="sprints")
     name = models.CharField(max_length=100)
     start_date = models.DateField()
     end_date = models.DateField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PLANNED')
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     objective = models.TextField(blank=True)

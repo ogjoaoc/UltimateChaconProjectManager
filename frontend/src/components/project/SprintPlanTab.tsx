@@ -16,6 +16,7 @@ type Sprint = {
   start_date: string;
   end_date: string;
   created_at: string;
+  status?: string;
   objective?: string;
   tech?: string;
   team?: string;
@@ -32,9 +33,10 @@ type ProjectMember = {
 type Props = {
   projectId: number;
   canManageProject: boolean;
+  onNavigateToSprints?: () => void;
 };
 
-export default function SprintPlanTab({ projectId, canManageProject }: Props) {
+export default function SprintPlanTab({ projectId, canManageProject, onNavigateToSprints }: Props) {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [selectedSprintId, setSelectedSprintId] = useState<number | null>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
@@ -51,21 +53,18 @@ export default function SprintPlanTab({ projectId, canManageProject }: Props) {
     try {
       setLoading(true);
       const [sprintsData, projectData, userData] = await Promise.all([
-        apiFetch(`/api/projects/${projectId}/sprints/`),
+        apiFetch(`/api/projects/${projectId}/sprints/active/`),
         apiFetch(`/api/projects/${projectId}/`),
         apiFetch("/api/users/me/"),
       ]);
 
-      // Filtra apenas sprints ativas onde o usuário participa
-      const activeSprints = filterActiveSprints(sprintsData, userData.id, projectData.members);
-      
-      setSprints(activeSprints);
+      setSprints(sprintsData);
       setMembers(projectData.members || []);
       setCurrentUser(userData);
 
       // Seleciona automaticamente a primeira sprint ativa
-      if (activeSprints.length > 0 && !selectedSprintId) {
-        setSelectedSprintId(activeSprints[0].id);
+      if (sprintsData.length > 0 && !selectedSprintId) {
+        setSelectedSprintId(sprintsData[0].id);
       }
     } catch (error: any) {
       toast({
@@ -78,37 +77,12 @@ export default function SprintPlanTab({ projectId, canManageProject }: Props) {
     }
   };
 
-  const filterActiveSprints = (allSprints: Sprint[], userId: number, projectMembers: ProjectMember[]) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return allSprints.filter((sprint) => {
-      const startDate = new Date(sprint.start_date);
-      const endDate = new Date(sprint.end_date);
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(0, 0, 0, 0);
-
-      // Verifica se a sprint está ativa (entre data de início e fim)
-      const isActive = today >= startDate && today <= endDate;
-
-      // Verifica se o usuário está na equipe da sprint
-      if (!sprint.team) return isActive;
-      
-      const teamMemberIds = sprint.team.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
-      const userInTeam = teamMemberIds.includes(userId);
-
-      return isActive && userInTeam;
-    });
-  };
-
   const handleEndSprint = async () => {
     if (!selectedSprintId) return;
 
     try {
-      // Por enquanto, vamos apenas deletar a sprint
-      // Em um cenário real, você poderia ter um endpoint específico para "encerrar" a sprint
-      await apiFetch(`/api/projects/${projectId}/sprints/${selectedSprintId}/`, {
-        method: "DELETE",
+      await apiFetch(`/api/projects/${projectId}/sprints/${selectedSprintId}/end-sprint/`, {
+        method: "POST",
       });
 
       toast({
@@ -117,8 +91,18 @@ export default function SprintPlanTab({ projectId, canManageProject }: Props) {
       });
 
       setIsEndSprintDialogOpen(false);
-      setSelectedSprintId(null);
-      loadData();
+      
+      // Redireciona para a aba de Sprints após sucesso
+      if (onNavigateToSprints) {
+        // Pequeno delay para garantir que o toast apareça
+        setTimeout(() => {
+          onNavigateToSprints();
+        }, 500);
+      } else {
+        // Se não tiver callback, recarrega os dados localmente
+        setSelectedSprintId(null);
+        await loadData();
+      }
     } catch (error: any) {
       toast({
         title: "Erro",

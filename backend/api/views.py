@@ -283,6 +283,46 @@ class SprintViewSet(viewsets.ModelViewSet):
 
         serializer.save(project=project, created_by=self.request.user)
 
+    @action(detail=False, methods=["get"], url_path="active")
+    def active_sprints(self, request, project_pk=None):
+        """
+        Retorna apenas as sprints ativas onde o usuário atual faz parte da equipe.
+        Uma sprint é considerada ativa se:
+        - A data atual estiver entre start_date e end_date
+        - O status não for COMPLETED
+        """
+        from datetime import date
+        
+        project = get_object_or_404(Project, id=project_pk)
+        
+        # Verifica se o usuário é membro do projeto
+        if not ProjectMembership.objects.filter(user=request.user, project=project).exists():
+            return Response([], status=status.HTTP_200_OK)
+        
+        today = date.today()
+        user_id = str(request.user.id)
+        
+        # Filtra sprints ativas (não concluídas e dentro do período)
+        active_sprints = Sprint.objects.filter(
+            project=project,
+            start_date__lte=today,
+            end_date__gte=today
+        ).exclude(status='COMPLETED')
+        
+        # Filtra apenas sprints onde o usuário está na equipe
+        user_sprints = []
+        for sprint in active_sprints:
+            if sprint.team:
+                team_ids = sprint.team.split(',')
+                if user_id in team_ids:
+                    user_sprints.append(sprint)
+            # Se não tem equipe definida, inclui para todos os membros do projeto
+            else:
+                user_sprints.append(sprint)
+        
+        serializer = self.get_serializer(user_sprints, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=["post"], url_path="add-items")
     def add_items(self, request, pk=None):
         """
@@ -328,6 +368,60 @@ class SprintViewSet(viewsets.ModelViewSet):
 
         return Response(
             {"detail": f"{count} item(s) adicionados ao Sprint Backlog com sucesso."},
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=["post"], url_path="end-sprint")
+    def end_sprint(self, request, project_pk=None, pk=None):
+        """
+        Encerra uma sprint, marcando-a como COMPLETED.
+        Pode ser executado por:
+        - Scrum Master a qualquer momento
+        - Qualquer membro da equipe após o prazo da sprint expirar
+        """
+        from datetime import date
+        
+        sprint = self.get_object()
+        project = sprint.project
+
+        # Verifica se o usuário é membro do projeto
+        membership = ProjectMembership.objects.filter(
+            user=request.user,
+            project=project
+        ).first()
+
+        if not membership:
+            return Response(
+                {"detail": "Você não é membro deste projeto."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Verifica se pode encerrar a sprint
+        is_scrum_master = membership.role == "SM"
+        is_sprint_ended = date.today() > sprint.end_date
+        
+        if not (is_scrum_master or is_sprint_ended):
+            return Response(
+                {"detail": "Apenas o Scrum Master pode encerrar a sprint antes do prazo, ou qualquer membro após o prazo expirar."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Verifica se a sprint já está concluída
+        if sprint.status == 'COMPLETED':
+            return Response(
+                {"detail": "Esta sprint já foi encerrada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Remove a associação dos itens de backlog com a sprint
+        ProductBacklogItem.objects.filter(sprint=sprint).update(sprint=None)
+        
+        # Marca a sprint como concluída
+        sprint.status = 'COMPLETED'
+        sprint.save()
+
+        return Response(
+            {"detail": f"Sprint '{sprint.name}' encerrada com sucesso."},
             status=status.HTTP_200_OK
         )
 

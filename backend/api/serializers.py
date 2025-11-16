@@ -181,7 +181,7 @@ class SprintSerializer(serializers.ModelSerializer):
         model = Sprint
         fields = [
             'id', 'project', 'name',
-            'start_date', 'end_date', 'created_at',
+            'start_date', 'end_date', 'status', 'created_at',
             'objective', 'increment', 'tech', 'team'
         ]
         read_only_fields = ['id', 'project', 'created_at']
