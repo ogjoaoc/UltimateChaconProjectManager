@@ -2,6 +2,16 @@ import { useState, useEffect } from "react";
 import { apiFetch } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 type ProjectMember = {
@@ -38,6 +48,7 @@ export default function MembersTab({ projectId, canManageProject }: Props) {
     const [members, setMembers] = useState<ProjectMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [removingId, setRemovingId] = useState<number | null>(null);
+    const [memberToRemove, setMemberToRemove] = useState<ProjectMember | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -71,10 +82,6 @@ export default function MembersTab({ projectId, canManageProject }: Props) {
     }
     }
     async function handleRemoveMember(memberId: number) {
-    if (!confirm("Tem certeza que deseja remover este membro do projeto?")) {
-      return;
-    }
-
     setRemovingId(memberId); // Ativa o loading do botão
     try {
       //
@@ -97,7 +104,10 @@ export default function MembersTab({ projectId, canManageProject }: Props) {
       
       // 4. ATUALIZAÇÃO DA TELA
       //    (Após o sucesso, busca os dados novamente para o cartão sumir)
-      fetchData();
+      await fetchData();
+
+      // Fecha o modal somente se for o membro confirmado
+      setMemberToRemove((prev) => (prev && prev.id === memberId ? null : prev));
 
     } catch (err: any) {
       toast.error(err.detail || "Erro ao remover membro");
@@ -147,7 +157,7 @@ export default function MembersTab({ projectId, canManageProject }: Props) {
                 <Button
                   variant="destructive" // "destructive" dá a cor vermelha de perigo
                   size="sm" // "sm" para um botão pequeno, como no seu exemplo
-                  onClick={() => handleRemoveMember(member.id)}
+                  onClick={() => setMemberToRemove(member)}
                   disabled={removingId === member.id}
                   className="w-full" // Faz o botão ocupar a largura total do footer
                 >
@@ -159,6 +169,39 @@ export default function MembersTab({ projectId, canManageProject }: Props) {
         
     ))}
       </div>
+      <AlertDialog
+        open={!!memberToRemove}
+        onOpenChange={(open) => {
+          if (!open && removingId === null) {
+            setMemberToRemove(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover membro</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover o membro "{memberToRemove?.username}" deste projeto?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setMemberToRemove(null)}
+              disabled={removingId === memberToRemove?.id}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => memberToRemove && handleRemoveMember(memberToRemove.id)}
+              disabled={removingId === memberToRemove?.id}
+            >
+              {removingId === memberToRemove?.id ? "Removendo..." : "Remover"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
