@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { apiFetch } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +75,26 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
 
   // Membros e backlog selecionados
   const [selectedTeamMembers, setSelectedTeamMembers] = useState<number[]>([]);
+
+  const scrumMasterIds = useMemo(
+    () => members.filter((member) => member.role === "SM").map((member) => member.id),
+    [members]
+  );
+
+  const withScrumMasters = useCallback(
+    (teamIds: number[]) => {
+      if (scrumMasterIds.length === 0) {
+        return teamIds;
+      }
+      const merged = Array.from(new Set([...teamIds, ...scrumMasterIds]));
+      return merged;
+    },
+    [scrumMasterIds]
+  );
+
+  useEffect(() => {
+    setSelectedTeamMembers((prev) => withScrumMasters(prev));
+  }, [withScrumMasters]);
 
   useEffect(() => {
     loadSprints();
@@ -205,7 +225,7 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
       tech: "",
       increment: "",
     });
-    setSelectedTeamMembers([]);
+    setSelectedTeamMembers(withScrumMasters([]));
   };
 
   const openCreateModal = () => {
@@ -224,9 +244,10 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
       increment: sprint.increment || "",
     });
     // Parse team members from comma-separated string
-    setSelectedTeamMembers(
-      sprint.team ? sprint.team.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : []
-    );
+    const parsedTeam = sprint.team
+      ? sprint.team.split(',').map(id => parseInt(id)).filter(id => !isNaN(id))
+      : [];
+    setSelectedTeamMembers(withScrumMasters(parsedTeam));
     setIsEditModalOpen(true);
   };
 
@@ -484,12 +505,14 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
                       <Checkbox
                         id={`member-${member.id}`}
                         checked={selectedTeamMembers.includes(member.id)}
+                        disabled={member.role === "SM"}
                         onCheckedChange={(checked) => {
+                          if (member.role === "SM") return;
                           if (checked) {
-                            setSelectedTeamMembers([...selectedTeamMembers, member.id]);
+                            setSelectedTeamMembers((prev) => [...prev, member.id]);
                           } else {
-                            setSelectedTeamMembers(
-                              selectedTeamMembers.filter((id) => id !== member.id)
+                            setSelectedTeamMembers((prev) =>
+                              prev.filter((id) => id !== member.id)
                             );
                           }
                         }}
@@ -518,10 +541,10 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
             </div>
           </div>
           <DialogFooter>
+            <Button onClick={handleCreateSprint}>Criar</Button>
             <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleCreateSprint}>Criar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -603,12 +626,14 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
                       <Checkbox
                         id={`edit-member-${member.id}`}
                         checked={selectedTeamMembers.includes(member.id)}
+                        disabled={member.role === "SM"}
                         onCheckedChange={(checked) => {
+                          if (member.role === "SM") return;
                           if (checked) {
-                            setSelectedTeamMembers([...selectedTeamMembers, member.id]);
+                            setSelectedTeamMembers((prev) => [...prev, member.id]);
                           } else {
-                            setSelectedTeamMembers(
-                              selectedTeamMembers.filter((id) => id !== member.id)
+                            setSelectedTeamMembers((prev) =>
+                              prev.filter((id) => id !== member.id)
                             );
                           }
                         }}
