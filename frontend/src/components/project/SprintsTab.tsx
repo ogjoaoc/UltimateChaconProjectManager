@@ -5,9 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import { Calendar, Eye, Pencil, Plus, Trash2, X } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type Sprint = {
   id: number;
@@ -16,6 +19,25 @@ type Sprint = {
   start_date: string;
   end_date: string;
   created_at: string;
+  objective?: string;
+  tech?: string;
+  team?: string;
+  increment?: string;
+  sprint_backlog?: ProductBacklogItem[];
+};
+
+type ProjectMember = {
+  id: number;
+  username: string;
+  email?: string;
+  role: "PO" | "SM" | "DEV";
+};
+
+type ProductBacklogItem = {
+  id: number;
+  title: string;
+  description: string;
+  priority: "HIGH" | "MEDIUM" | "LOW";
 };
 
 type Props = {
@@ -27,6 +49,9 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  // Dados adicionais
+  const [members, setMembers] = useState<ProjectMember[]>([]);
 
   // Modais
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -42,11 +67,31 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
     name: "",
     start_date: "",
     end_date: "",
+    objective: "",
+    tech: "",
+    increment: "",
   });
+
+  // Membros e backlog selecionados
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState<number[]>([]);
 
   useEffect(() => {
     loadSprints();
+    loadProjectData();
   }, [projectId]);
+
+  const loadProjectData = async () => {
+    try {
+      const projectData = await apiFetch(`/api/projects/${projectId}/`);
+      setMembers(projectData.members || []);
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao carregar dados do projeto",
+        variant: "destructive",
+      });
+    }
+  };
 
   const loadSprints = async () => {
     try {
@@ -66,9 +111,14 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
 
   const handleCreateSprint = async () => {
     try {
+      const payload = {
+        ...formData,
+        team: selectedTeamMembers.join(','),
+      };
+
       await apiFetch(`/api/projects/${projectId}/sprints/`, {
         method: "POST",
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       
       toast({
@@ -77,7 +127,7 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
       });
       
       setIsCreateModalOpen(false);
-      setFormData({ name: "", start_date: "", end_date: "" });
+      resetForm();
       loadSprints();
     } catch (error: any) {
       toast({
@@ -92,9 +142,14 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
     if (!selectedSprint) return;
 
     try {
+      const payload = {
+        ...formData,
+        team: selectedTeamMembers.join(','),
+      };
+
       await apiFetch(`/api/projects/${projectId}/sprints/${selectedSprint.id}/`, {
         method: "PATCH",
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       
       toast({
@@ -104,7 +159,7 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
       
       setIsEditModalOpen(false);
       setSelectedSprint(null);
-      setFormData({ name: "", start_date: "", end_date: "" });
+      resetForm();
       loadSprints();
     } catch (error: any) {
       toast({
@@ -140,8 +195,20 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      start_date: "",
+      end_date: "",
+      objective: "",
+      tech: "",
+      increment: "",
+    });
+    setSelectedTeamMembers([]);
+  };
+
   const openCreateModal = () => {
-    setFormData({ name: "", start_date: "", end_date: "" });
+    resetForm();
     setIsCreateModalOpen(true);
   };
 
@@ -151,7 +218,14 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
       name: sprint.name,
       start_date: sprint.start_date,
       end_date: sprint.end_date,
+      objective: sprint.objective || "",
+      tech: sprint.tech || "",
+      increment: sprint.increment || "",
     });
+    // Parse team members from comma-separated string
+    setSelectedTeamMembers(
+      sprint.team ? sprint.team.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : []
+    );
     setIsEditModalOpen(true);
   };
 
@@ -220,7 +294,7 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
             Visualizar
           </Button>
           
-          {status === "planned" && (
+          {status === "planned" && canManageProject && (
             <>
               <Button
                 variant="outline"
@@ -323,37 +397,109 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
 
       {/* Modal Criar Sprint */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova Sprint</DialogTitle>
             <DialogDescription>Crie uma nova sprint para o projeto</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name">Nome da Sprint</Label>
+              <Label htmlFor="name">Título *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Ex: Sprint 1"
+                required
               />
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="start_date">Data de Início *</Label>
+                <Input
+                  id="start_date"
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="end_date">Data de Fim *</Label>
+                <Input
+                  id="end_date"
+                  type="date"
+                  value={formData.end_date}
+                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="start_date">Data de Início</Label>
-              <Input
-                id="start_date"
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+              <Label htmlFor="objective">Objetivo</Label>
+              <Textarea
+                id="objective"
+                value={formData.objective}
+                onChange={(e) => setFormData({ ...formData, objective: e.target.value })}
+                placeholder="Descreva o objetivo da sprint"
+                rows={3}
               />
             </div>
+
             <div>
-              <Label htmlFor="end_date">Data de Término</Label>
-              <Input
-                id="end_date"
-                type="date"
-                value={formData.end_date}
-                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+              <Label htmlFor="tech">Tecnologias</Label>
+              <Textarea
+                id="tech"
+                value={formData.tech}
+                onChange={(e) => setFormData({ ...formData, tech: e.target.value })}
+                placeholder="Liste as tecnologias que serão utilizadas"
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <Label>Equipe (Membros da Sprint)</Label>
+              <div className="border rounded-md p-3 mt-2 space-y-2 max-h-40 overflow-y-auto">
+                {members.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum membro disponível</p>
+                ) : (
+                  members.map((member) => (
+                    <div key={member.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`member-${member.id}`}
+                        checked={selectedTeamMembers.includes(member.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedTeamMembers([...selectedTeamMembers, member.id]);
+                          } else {
+                            setSelectedTeamMembers(
+                              selectedTeamMembers.filter((id) => id !== member.id)
+                            );
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`member-${member.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {member.username} ({member.role})
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="increment">Saída (Incremento)</Label>
+              <Textarea
+                id="increment"
+                value={formData.increment}
+                onChange={(e) => setFormData({ ...formData, increment: e.target.value })}
+                placeholder="Descreva o incremento esperado ao final da sprint"
+                rows={3}
               />
             </div>
           </div>
@@ -361,43 +507,118 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
             <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleCreateSprint}>Criar Sprint</Button>
+            <Button onClick={handleCreateSprint}>Criar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Modal Editar Sprint */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Sprint</DialogTitle>
-            <DialogDescription>Edite as informações da sprint</DialogDescription>
+            <DialogDescription>
+              Edite as informações da sprint (somente Scrum Master)
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="edit_name">Nome da Sprint</Label>
+              <Label htmlFor="edit_name">Título *</Label>
               <Input
                 id="edit_name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Ex: Sprint 1"
+                required
               />
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_start_date">Data de Início *</Label>
+                <Input
+                  id="edit_start_date"
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_end_date">Data de Fim *</Label>
+                <Input
+                  id="edit_end_date"
+                  type="date"
+                  value={formData.end_date}
+                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="edit_start_date">Data de Início</Label>
-              <Input
-                id="edit_start_date"
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+              <Label htmlFor="edit_objective">Objetivo</Label>
+              <Textarea
+                id="edit_objective"
+                value={formData.objective}
+                onChange={(e) => setFormData({ ...formData, objective: e.target.value })}
+                placeholder="Descreva o objetivo da sprint"
+                rows={3}
               />
             </div>
+
             <div>
-              <Label htmlFor="edit_end_date">Data de Término</Label>
-              <Input
-                id="edit_end_date"
-                type="date"
-                value={formData.end_date}
-                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+              <Label htmlFor="edit_tech">Tecnologias</Label>
+              <Textarea
+                id="edit_tech"
+                value={formData.tech}
+                onChange={(e) => setFormData({ ...formData, tech: e.target.value })}
+                placeholder="Liste as tecnologias que serão utilizadas"
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <Label>Equipe (Membros da Sprint)</Label>
+              <div className="border rounded-md p-3 mt-2 space-y-2 max-h-40 overflow-y-auto">
+                {members.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum membro disponível</p>
+                ) : (
+                  members.map((member) => (
+                    <div key={member.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`edit-member-${member.id}`}
+                        checked={selectedTeamMembers.includes(member.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedTeamMembers([...selectedTeamMembers, member.id]);
+                          } else {
+                            setSelectedTeamMembers(
+                              selectedTeamMembers.filter((id) => id !== member.id)
+                            );
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`edit-member-${member.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {member.username} ({member.role})
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="edit_increment">Saída (Incremento)</Label>
+              <Textarea
+                id="edit_increment"
+                value={formData.increment}
+                onChange={(e) => setFormData({ ...formData, increment: e.target.value })}
+                placeholder="Descreva o incremento esperado ao final da sprint"
+                rows={3}
               />
             </div>
           </div>
@@ -412,7 +633,7 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
 
       {/* Modal Visualizar Sprint */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedSprint?.name}</DialogTitle>
             <DialogDescription>Informações da Sprint</DialogDescription>
@@ -423,14 +644,49 @@ export default function SprintsTab({ projectId, canManageProject }: Props) {
                 <Label className="text-muted-foreground">Nome</Label>
                 <p className="text-lg font-medium">{selectedSprint.name}</p>
               </div>
-              <div>
-                <Label className="text-muted-foreground">Data de Início</Label>
-                <p className="text-lg">{formatDate(selectedSprint.start_date)}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Data de Início</Label>
+                  <p className="text-lg">{formatDate(selectedSprint.start_date)}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Data de Término</Label>
+                  <p className="text-lg">{formatDate(selectedSprint.end_date)}</p>
+                </div>
               </div>
-              <div>
-                <Label className="text-muted-foreground">Data de Término</Label>
-                <p className="text-lg">{formatDate(selectedSprint.end_date)}</p>
-              </div>
+              {selectedSprint.objective && (
+                <div>
+                  <Label className="text-muted-foreground">Objetivo</Label>
+                  <p className="text-base whitespace-pre-wrap">{selectedSprint.objective}</p>
+                </div>
+              )}
+              {selectedSprint.tech && (
+                <div>
+                  <Label className="text-muted-foreground">Tecnologias</Label>
+                  <p className="text-base whitespace-pre-wrap">{selectedSprint.tech}</p>
+                </div>
+              )}
+              {selectedSprint.team && (
+                <div>
+                  <Label className="text-muted-foreground">Equipe</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedSprint.team.split(',').map((memberId) => {
+                      const member = members.find(m => m.id === parseInt(memberId));
+                      return member ? (
+                        <Badge key={member.id} variant="outline">
+                          {member.username}
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+              {selectedSprint.increment && (
+                <div>
+                  <Label className="text-muted-foreground">Saída (Incremento)</Label>
+                  <p className="text-base whitespace-pre-wrap">{selectedSprint.increment}</p>
+                </div>
+              )}
               <div>
                 <Label className="text-muted-foreground">Criada em</Label>
                 <p className="text-lg">
